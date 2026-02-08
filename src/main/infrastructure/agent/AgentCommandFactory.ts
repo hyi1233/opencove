@@ -1,15 +1,19 @@
-import type { AgentProviderId } from '../../../shared/types/api'
+import type { AgentLaunchMode, AgentProviderId } from '../../../shared/types/api'
 
 interface BuildAgentLaunchCommandInput {
   provider: AgentProviderId
-  prompt: string
+  mode: AgentLaunchMode
+  prompt?: string
   model: string | null
+  resumeSessionId: string | null
 }
 
 export interface AgentLaunchCommand {
   command: string
   args: string[]
+  launchMode: AgentLaunchMode
   effectiveModel: string | null
+  resumeSessionId: string | null
 }
 
 function normalizeOptionalValue(value: string | null | undefined): string | null {
@@ -21,8 +25,8 @@ function normalizeOptionalValue(value: string | null | undefined): string | null
   return normalized.length > 0 ? normalized : null
 }
 
-function normalizePrompt(value: string): string {
-  const normalized = value.trim()
+function normalizePrompt(value: string | undefined): string {
+  const normalized = typeof value === 'string' ? value.trim() : ''
 
   if (normalized.length === 0) {
     throw new Error('Agent prompt cannot be empty')
@@ -33,7 +37,7 @@ function normalizePrompt(value: string): string {
 
 export function buildAgentLaunchCommand(input: BuildAgentLaunchCommandInput): AgentLaunchCommand {
   const effectiveModel = normalizeOptionalValue(input.model)
-  const prompt = normalizePrompt(input.prompt)
+  const resumeSessionId = normalizeOptionalValue(input.resumeSessionId)
 
   if (input.provider === 'claude-code') {
     const args = ['--dangerously-skip-permissions']
@@ -42,12 +46,52 @@ export function buildAgentLaunchCommand(input: BuildAgentLaunchCommandInput): Ag
       args.push('--model', effectiveModel)
     }
 
-    args.push(prompt)
+    if (input.mode === 'resume') {
+      if (resumeSessionId) {
+        args.push('--resume', resumeSessionId)
+      } else {
+        args.push('--continue')
+      }
+
+      return {
+        command: 'claude',
+        args,
+        launchMode: 'resume',
+        effectiveModel,
+        resumeSessionId,
+      }
+    }
+
+    args.push(normalizePrompt(input.prompt))
 
     return {
       command: 'claude',
       args,
+      launchMode: 'new',
       effectiveModel,
+      resumeSessionId: null,
+    }
+  }
+
+  if (input.mode === 'resume') {
+    const args = ['resume']
+
+    if (resumeSessionId) {
+      args.push(resumeSessionId)
+    } else {
+      args.push('--last')
+    }
+
+    if (effectiveModel) {
+      args.push('--model', effectiveModel)
+    }
+
+    return {
+      command: 'codex',
+      args,
+      launchMode: 'resume',
+      effectiveModel,
+      resumeSessionId,
     }
   }
 
@@ -57,11 +101,13 @@ export function buildAgentLaunchCommand(input: BuildAgentLaunchCommandInput): Ag
     args.push('--model', effectiveModel)
   }
 
-  args.push(prompt)
+  args.push(normalizePrompt(input.prompt))
 
   return {
     command: 'codex',
     args,
+    launchMode: 'new',
     effectiveModel,
+    resumeSessionId: null,
   }
 }

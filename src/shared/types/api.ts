@@ -4,6 +4,10 @@ export interface WorkspaceDirectory {
   path: string
 }
 
+export interface EnsureDirectoryInput {
+  path: string
+}
+
 export interface PseudoTerminalSession {
   sessionId: string
 }
@@ -42,6 +46,8 @@ export interface TerminalExitEvent {
 
 export type AgentProviderId = 'claude-code' | 'codex'
 
+export type AgentLaunchMode = 'new' | 'resume'
+
 export interface ListAgentModelsInput {
   provider: AgentProviderId
 }
@@ -65,7 +71,9 @@ export interface LaunchAgentInput {
   provider: AgentProviderId
   cwd: string
   prompt: string
+  mode?: AgentLaunchMode
   model?: string | null
+  resumeSessionId?: string | null
   cols?: number
   rows?: number
 }
@@ -75,5 +83,7 @@ export interface LaunchAgentResult {
   provider: AgentProviderId
   command: string
   args: string[]
+  launchMode: AgentLaunchMode
   effectiveModel: string | null
+  resumeSessionId: string | null
 }

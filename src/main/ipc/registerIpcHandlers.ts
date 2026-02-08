@@ -1,9 +1,11 @@
+import { mkdir } from 'node:fs/promises'
+import { basename, resolve } from 'node:path'
 import { dialog, ipcMain, webContents } from 'electron'
 import type { IPty } from 'node-pty'
-import { basename, resolve } from 'node:path'
 import { IPC_CHANNELS } from '../../shared/constants/ipc'
 import type {
   AgentProviderId,
+  EnsureDirectoryInput,
   KillTerminalInput,
   LaunchAgentInput,
   LaunchAgentResult,
@@ -17,6 +19,7 @@ import type {
 } from '../../shared/types/api'
 import { buildAgentLaunchCommand } from '../infrastructure/agent/AgentCommandFactory'
 import { listAgentModels } from '../infrastructure/agent/AgentModelService'
+import { locateAgentResumeSessionId } from '../infrastructure/agent/AgentSessionLocator'
 import { PtyManager } from '../infrastructure/pty/PtyManager'
 
 export interface IpcRegistrationDisposable {
@@ -46,6 +49,7 @@ function normalizeListModelsPayload(payload: unknown): ListAgentModelsInput {
 function resolveAgentTestStub(
   provider: AgentProviderId,
   model: string | null,
+  mode: LaunchAgentInput['mode'],
 ): {
   command: string
   args: string[]
@@ -55,19 +59,24 @@ function resolveAgentTestStub(
   }
 
   if (process.platform === 'win32') {
-    const message = `[cove-test-agent] ${provider} ${model ?? 'default-model'}`
+    const message = `[cove-test-agent] ${provider} ${mode ?? 'new'} ${model ?? 'default-model'}`
     return {
       command: 'powershell.exe',
-      args: ['-NoLogo', '-NoProfile', '-Command', `Write-Output "${message}"`],
+      args: [
+        '-NoLogo',
+        '-NoProfile',
+        '-Command',
+        `Write-Output "${message}"; Start-Sleep -Seconds 120`,
+      ],
     }
   }
 
   const shell = process.env.SHELL ?? '/bin/zsh'
-  const message = `[cove-test-agent] ${provider} ${model ?? 'default-model'}`
+  const message = `[cove-test-agent] ${provider} ${mode ?? 'new'} ${model ?? 'default-model'}`
 
   return {
     command: shell,
-    args: ['-lc', `printf '%s\n' "${message}"`],
+    args: ['-lc', `printf '%s\n' "${message}"; sleep 120`],
   }
 }
 
@@ -80,7 +89,11 @@ function normalizeLaunchAgentPayload(payload: unknown): LaunchAgentInput {
   const provider = normalizeProvider(record.provider)
   const cwd = typeof record.cwd === 'string' ? record.cwd.trim() : ''
   const prompt = typeof record.prompt === 'string' ? record.prompt.trim() : ''
+  const mode = record.mode === 'resume' ? 'resume' : 'new'
+
   const model = typeof record.model === 'string' ? record.model.trim() : ''
+  const resumeSessionId =
+    typeof record.resumeSessionId === 'string' ? record.resumeSessionId.trim() : ''
 
   const cols =
     typeof record.cols === 'number' && Number.isFinite(record.cols) && record.cols > 0
@@ -95,7 +108,7 @@ function normalizeLaunchAgentPayload(payload: unknown): LaunchAgentInput {
     throw new Error('Invalid cwd for agent:launch')
   }
 
-  if (prompt.length === 0) {
+  if (mode === 'new' && prompt.length === 0) {
     throw new Error('Invalid prompt for agent:launch')
   }
 
@@ -103,10 +116,27 @@ function normalizeLaunchAgentPayload(payload: unknown): LaunchAgentInput {
     provider,
     cwd,
     prompt,
+    mode,
     model: model.length > 0 ? model : null,
+    resumeSessionId: resumeSessionId.length > 0 ? resumeSessionId : null,
     cols,
     rows,
   }
+}
+
+function normalizeEnsureDirectoryPayload(payload: unknown): EnsureDirectoryInput {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Invalid payload for workspace:ensure-directory')
+  }
+
+  const record = payload as Record<string, unknown>
+  const path = typeof record.path === 'string' ? record.path.trim() : ''
+
+  if (path.length === 0) {
+    throw new Error('Invalid path for workspace:ensure-directory')
+  }
+
+  return { path }
 }
 
 export function registerIpcHandlers(): IpcRegistrationDisposable {
@@ -164,6 +194,14 @@ export function registerIpcHandlers(): IpcRegistrationDisposable {
     },
   )
 
+  ipcMain.handle(
+    IPC_CHANNELS.workspaceEnsureDirectory,
+    async (_event, payload: EnsureDirectoryInput) => {
+      const normalized = normalizeEnsureDirectoryPayload(payload)
+      await mkdir(normalized.path, { recursive: true })
+    },
+  )
+
   ipcMain.handle(IPC_CHANNELS.ptySpawn, async (_event, payload: SpawnTerminalInput) => {
     const { sessionId, pty } = ptyManager.spawnSession(payload)
     wirePtySessionEvents(sessionId, pty)
@@ -193,11 +231,19 @@ export function registerIpcHandlers(): IpcRegistrationDisposable {
 
     const launchCommand = buildAgentLaunchCommand({
       provider: normalized.provider,
+      mode: normalized.mode ?? 'new',
       prompt: normalized.prompt,
       model: normalized.model ?? null,
+      resumeSessionId: normalized.resumeSessionId ?? null,
     })
 
-    const testStub = resolveAgentTestStub(normalized.provider, launchCommand.effectiveModel)
+    const testStub = resolveAgentTestStub(
+      normalized.provider,
+      launchCommand.effectiveModel,
+      normalized.mode,
+    )
+
+    const launchStartedAtMs = Date.now()
 
     const { sessionId, pty } = ptyManager.spawnSession({
       cwd: normalized.cwd,
@@ -209,12 +255,34 @@ export function registerIpcHandlers(): IpcRegistrationDisposable {
 
     wirePtySessionEvents(sessionId, pty)
 
+    let resumeSessionId = launchCommand.resumeSessionId
+
+    if (process.env.NODE_ENV !== 'test') {
+      const shouldDetectResumeSession =
+        launchCommand.launchMode === 'new' ||
+        (launchCommand.launchMode === 'resume' && resumeSessionId === null)
+
+      if (shouldDetectResumeSession) {
+        const detectedSessionId = await locateAgentResumeSessionId({
+          provider: normalized.provider,
+          cwd: normalized.cwd,
+          startedAtMs: launchStartedAtMs,
+        })
+
+        if (detectedSessionId) {
+          resumeSessionId = detectedSessionId
+        }
+      }
+    }
+
     const result: LaunchAgentResult = {
       sessionId,
       provider: normalized.provider,
       command: launchCommand.command,
       args: launchCommand.args,
+      launchMode: launchCommand.launchMode,
       effectiveModel: launchCommand.effectiveModel,
+      resumeSessionId,
     }
 
     return result
@@ -224,6 +292,7 @@ export function registerIpcHandlers(): IpcRegistrationDisposable {
     dispose: () => {
       ptyManager.disposeAll()
       ipcMain.removeHandler(IPC_CHANNELS.workspaceSelectDirectory)
+      ipcMain.removeHandler(IPC_CHANNELS.workspaceEnsureDirectory)
       ipcMain.removeHandler(IPC_CHANNELS.ptySpawn)
       ipcMain.removeHandler(IPC_CHANNELS.ptyWrite)
       ipcMain.removeHandler(IPC_CHANNELS.ptyResize)

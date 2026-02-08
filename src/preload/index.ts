@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { IPC_CHANNELS } from '../shared/constants/ipc'
 import type {
+  EnsureDirectoryInput,
   KillTerminalInput,
   LaunchAgentInput,
   LaunchAgentResult,
@@ -22,6 +23,8 @@ const coveApi = {
   workspace: {
     selectDirectory: (): Promise<WorkspaceDirectory | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.workspaceSelectDirectory),
+    ensureDirectory: (payload: EnsureDirectoryInput): Promise<void> =>
+      ipcRenderer.invoke(IPC_CHANNELS.workspaceEnsureDirectory, payload),
   },
   pty: {
     spawn: (payload: SpawnTerminalInput): Promise<{ sessionId: string }> =>

@@ -1,5 +1,6 @@
 export const IPC_CHANNELS = {
   workspaceSelectDirectory: 'workspace:select-directory',
+  workspaceEnsureDirectory: 'workspace:ensure-directory',
   ptySpawn: 'pty:spawn',
   ptyWrite: 'pty:write',
   ptyResize: 'pty:resize',

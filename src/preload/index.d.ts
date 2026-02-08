@@ -1,5 +1,6 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import type {
+  EnsureDirectoryInput,
   KillTerminalInput,
   LaunchAgentInput,
   LaunchAgentResult,
@@ -18,6 +19,7 @@ type UnsubscribeFn = () => void
 export interface CoveApi {
   workspace: {
     selectDirectory: () => Promise<WorkspaceDirectory | null>
+    ensureDirectory: (payload: EnsureDirectoryInput) => Promise<void>
   }
   pty: {
     spawn: (payload: SpawnTerminalInput) => Promise<{ sessionId: string }>
