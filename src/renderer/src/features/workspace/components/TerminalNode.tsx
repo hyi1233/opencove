@@ -583,7 +583,11 @@ export function TerminalNode({
       <div
         ref={containerRef}
         className="terminal-node__terminal nodrag"
-        onClickCapture={() => {
+        onPointerDown={event => {
+          if (event.button !== 0) {
+            return
+          }
+
           onInteractionStart?.()
         }}
       />

@@ -403,6 +403,78 @@ test.describe('Workspace Canvas Interactions', () => {
     }
   })
 
+  test('dragging terminal header does not normalize canvas zoom', async () => {
+    const { electronApp, window } = await launchApp()
+
+    try {
+      await clearAndSeedWorkspace(window, [
+        {
+          id: 'node-header-zoom',
+          title: 'terminal-header-zoom',
+          position: { x: 120, y: 120 },
+          width: 460,
+          height: 300,
+        },
+      ])
+
+      const zoomInButton = window.locator('.react-flow__controls-zoomin')
+      await expect(zoomInButton).toBeVisible()
+
+      await zoomInButton.click()
+      await zoomInButton.click()
+
+      const readZoom = async (): Promise<number> => {
+        return await window.evaluate(() => {
+          const viewport = document.querySelector('.react-flow__viewport') as HTMLElement | null
+          if (!viewport) {
+            return 1
+          }
+
+          const style = window.getComputedStyle(viewport)
+          const matrix = style.transform.match(/matrix\(([^)]+)\)/)
+          if (!matrix) {
+            return 1
+          }
+
+          const values = matrix[1].split(',').map(item => Number(item.trim()))
+          const zoom = values[0]
+          return Number.isFinite(zoom) ? zoom : 1
+        })
+      }
+
+      const zoomBefore = await readZoom()
+      expect(zoomBefore).toBeGreaterThan(1.01)
+
+      const terminal = window.locator('.terminal-node').first()
+      await expect(terminal).toBeVisible()
+
+      const header = terminal.locator('.terminal-node__header')
+      const pane = window.locator('.workspace-canvas .react-flow__pane')
+      await expect(pane).toBeVisible()
+
+      await header.dragTo(pane, {
+        sourcePosition: { x: 120, y: 16 },
+        targetPosition: { x: 680, y: 420 },
+      })
+
+      await expect
+        .poll(async () => {
+          return await readZoom()
+        })
+        .toBeGreaterThan(1.01)
+
+      await terminal.locator('.xterm').click()
+
+      await expect
+        .poll(async () => {
+          return await readZoom()
+        })
+        .toBeCloseTo(1, 2)
+    } finally {
+      await electronApp.close()
+    }
+  })
+
   test('normalizes canvas zoom and centers clicked terminal', async () => {
     const { electronApp, window } = await launchApp()
 
