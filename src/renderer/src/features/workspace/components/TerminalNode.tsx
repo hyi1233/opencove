@@ -19,6 +19,7 @@ interface TerminalNodeProps {
   onClose: () => void
   onResize: (size: { width: number; height: number }) => void
   onScrollbackChange?: (scrollback: string) => void
+  onInteractionStart?: () => void
   onStop?: () => void
   onRerun?: () => void
   onResume?: () => void
@@ -135,6 +136,7 @@ export function TerminalNode({
   onClose,
   onResize,
   onScrollbackChange,
+  onInteractionStart,
   onStop,
   onRerun,
   onResume,
@@ -578,7 +580,16 @@ export function TerminalNode({
 
       {isAgentNode && lastError ? <div className="terminal-node__error">{lastError}</div> : null}
 
-      <div ref={containerRef} className="terminal-node__terminal nodrag" />
+      <div
+        ref={containerRef}
+        className="terminal-node__terminal nodrag"
+        onMouseEnter={() => {
+          onInteractionStart?.()
+        }}
+        onMouseDownCapture={() => {
+          onInteractionStart?.()
+        }}
+      />
       <button
         type="button"
         className="terminal-node__resizer terminal-node__resizer--right nodrag"

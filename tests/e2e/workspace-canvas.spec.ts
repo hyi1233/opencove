@@ -403,6 +403,62 @@ test.describe('Workspace Canvas Interactions', () => {
     }
   })
 
+  test('normalizes canvas zoom when terminal interaction starts', async () => {
+    const { electronApp, window } = await launchApp()
+
+    try {
+      await clearAndSeedWorkspace(window, [
+        {
+          id: 'node-zoom-normalize',
+          title: 'terminal-zoom-normalize',
+          position: { x: 120, y: 120 },
+          width: 460,
+          height: 300,
+        },
+      ])
+
+      const zoomInButton = window.locator('.react-flow__controls-zoomin')
+      await expect(zoomInButton).toBeVisible()
+
+      await zoomInButton.click()
+      await zoomInButton.click()
+
+      const readZoom = async (): Promise<number> => {
+        return await window.evaluate(() => {
+          const viewport = document.querySelector('.react-flow__viewport') as HTMLElement | null
+          if (!viewport) {
+            return 1
+          }
+
+          const style = window.getComputedStyle(viewport)
+          const matrix = style.transform.match(/matrix\(([^)]+)\)/)
+          if (!matrix) {
+            return 1
+          }
+
+          const values = matrix[1].split(',').map(item => Number(item.trim()))
+          const zoom = values[0]
+          return Number.isFinite(zoom) ? zoom : 1
+        })
+      }
+
+      const zoomBefore = await readZoom()
+      expect(zoomBefore).toBeGreaterThan(1.01)
+
+      const terminal = window.locator('.terminal-node').first()
+      await expect(terminal).toBeVisible()
+      await terminal.locator('.xterm').hover()
+
+      await expect
+        .poll(async () => {
+          return await readZoom()
+        })
+        .toBeCloseTo(1, 2)
+    } finally {
+      await electronApp.close()
+    }
+  })
+
   test('preserves terminal history after workspace switch', async () => {
     const { electronApp, window } = await launchApp()
 

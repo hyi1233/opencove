@@ -143,6 +143,7 @@ function WorkspaceCanvasInner({
   const [taskCreator, setTaskCreator] = useState<TaskCreatorState | null>(null)
 
   const reactFlow = useReactFlow<TerminalNodeData>()
+  const canvasRef = useRef<HTMLDivElement | null>(null)
 
   const nodesRef = useRef(nodes)
   const closeNodeRef = useRef<(nodeId: string) => Promise<void>>(async () => undefined)
@@ -159,6 +160,7 @@ function WorkspaceCanvasInner({
   )
   const isNodeDraggingRef = useRef(false)
   const pendingScrollbackByNodeRef = useRef<Map<string, string>>(new Map())
+  const normalizeViewportForTerminalInteractionRef = useRef<() => void>(() => undefined)
 
   useEffect(() => {
     nodesRef.current = nodes
@@ -843,6 +845,29 @@ function WorkspaceCanvasInner({
     )
   }, [focusNodeId, focusSequence, nodes, reactFlow])
 
+  normalizeViewportForTerminalInteractionRef.current = () => {
+    const viewport = reactFlow.getViewport()
+    if (Math.abs(viewport.zoom - 1) < 0.01) {
+      return
+    }
+
+    const canvas = canvasRef.current
+    if (!canvas) {
+      return
+    }
+
+    const rect = canvas.getBoundingClientRect()
+    const center = reactFlow.screenToFlowPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    })
+
+    reactFlow.setCenter(center.x, center.y, {
+      duration: 120,
+      zoom: 1,
+    })
+  }
+
   const nodeTypes = useMemo(
     () => ({
       terminalNode: ({ data, id }: { data: TerminalNodeData; id: string }) => (
@@ -861,6 +886,7 @@ function WorkspaceCanvasInner({
           }}
           onResize={size => resizeNodeRef.current(id, size)}
           onScrollbackChange={scrollback => updateNodeScrollbackRef.current(id, scrollback)}
+          onInteractionStart={() => normalizeViewportForTerminalInteractionRef.current()}
           onStop={
             data.kind === 'agent'
               ? () => {
@@ -1374,7 +1400,7 @@ function WorkspaceCanvasInner({
   const taskTitleModelLabel = resolveTaskTitleModel(agentSettings) ?? 'default model'
 
   return (
-    <div className="workspace-canvas" onClick={() => setContextMenu(null)}>
+    <div ref={canvasRef} className="workspace-canvas" onClick={() => setContextMenu(null)}>
       <ReactFlow<TerminalNodeData>
         nodes={nodes}
         edges={[]}
