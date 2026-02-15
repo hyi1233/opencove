@@ -43,7 +43,29 @@ function isLikelyBinary(content) {
   return content.includes('\u0000')
 }
 
-const files = process.argv.slice(2).filter(shouldCheck)
+function resolveFilesFromStaged() {
+  const result = spawnSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR'], {
+    encoding: 'utf8',
+  })
+
+  if (result.status !== 0) {
+    if (result.stderr) {
+      process.stderr.write(result.stderr)
+    } else {
+      process.stderr.write('Failed to list staged files.\n')
+    }
+
+    process.exit(1)
+  }
+
+  return result.stdout
+    .split(/\r\n|\r|\n/)
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+}
+
+const targetFiles = process.argv.length > 2 ? process.argv.slice(2) : resolveFilesFromStaged()
+const files = targetFiles.filter(shouldCheck)
 
 let hasErrors = false
 
