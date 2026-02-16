@@ -1,51 +1,21 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import {
-  flushScheduledPersistedStateWrite,
   readPersistedState,
-  schedulePersistedStateWrite,
   toPersistedState,
   writePersistedState,
   writeRawPersistedState,
 } from '../../../src/renderer/src/features/workspace/utils/persistence'
 import { DEFAULT_WORKSPACE_VIEWPORT } from '../../../src/renderer/src/features/workspace/types'
 import type { WorkspaceState } from '../../../src/renderer/src/features/workspace/types'
+import { installMockStorage } from './persistenceTestStorage'
 
-class MockStorage implements Storage {
-  private store = new Map<string, string>()
+installMockStorage()
 
-  public get length(): number {
-    return this.store.size
-  }
-
-  public clear(): void {
-    this.store.clear()
-  }
-
-  public getItem(key: string): string | null {
-    return this.store.get(key) ?? null
-  }
-
-  public key(index: number): string | null {
-    const keys = [...this.store.keys()]
-    return keys[index] ?? null
-  }
-
-  public removeItem(key: string): void {
-    this.store.delete(key)
-  }
-
-  public setItem(key: string, value: string): void {
-    this.store.set(key, value)
-  }
-}
-
-Object.defineProperty(window, 'localStorage', {
-  configurable: true,
-  writable: true,
-  value: new MockStorage(),
+beforeEach(() => {
+  window.localStorage.clear()
 })
 
-describe('workspace persistence', () => {
+describe('workspace persistence (read/normalize)', () => {
   it('writes and reads persisted state', () => {
     const workspaces: WorkspaceState[] = [
       {
@@ -359,147 +329,5 @@ describe('workspace persistence', () => {
   it('returns null when stored json is invalid', () => {
     writeRawPersistedState('{')
     expect(readPersistedState()).toBeNull()
-  })
-
-  it('debounces persisted state writes and keeps latest payload', () => {
-    vi.useFakeTimers()
-
-    const setItemSpy = vi.spyOn(window.localStorage, 'setItem')
-
-    schedulePersistedStateWrite(() => toPersistedState([], 'workspace-1'), { delayMs: 10 })
-    schedulePersistedStateWrite(() => toPersistedState([], 'workspace-2'), { delayMs: 10 })
-
-    expect(setItemSpy).not.toHaveBeenCalled()
-
-    vi.advanceTimersByTime(10)
-
-    expect(setItemSpy).toHaveBeenCalledTimes(1)
-    const [, raw] = setItemSpy.mock.calls[0] as [string, string]
-    expect(JSON.parse(raw).activeWorkspaceId).toBe('workspace-2')
-
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-  })
-
-  it('flushes scheduled persisted state writes immediately', () => {
-    vi.useFakeTimers()
-
-    const setItemSpy = vi.spyOn(window.localStorage, 'setItem')
-
-    schedulePersistedStateWrite(() => toPersistedState([], 'workspace-1'), { delayMs: 10_000 })
-    flushScheduledPersistedStateWrite()
-
-    expect(setItemSpy).toHaveBeenCalledTimes(1)
-
-    vi.advanceTimersByTime(10_000)
-
-    expect(setItemSpy).toHaveBeenCalledTimes(1)
-
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-  })
-
-  it('ignores persistence failures (quota exceeded, disabled storage, etc.)', () => {
-    const previousStorage = window.localStorage
-
-    class ThrowingStorage extends MockStorage {
-      public override setItem(_key: string, _value: string): void {
-        throw new Error('QuotaExceededError')
-      }
-    }
-
-    Object.defineProperty(window, 'localStorage', {
-      configurable: true,
-      writable: true,
-      value: new ThrowingStorage(),
-    })
-
-    expect(() => {
-      writePersistedState(toPersistedState([], null))
-    }).not.toThrow()
-
-    Object.defineProperty(window, 'localStorage', {
-      configurable: true,
-      writable: true,
-      value: previousStorage,
-    })
-  })
-
-  it('falls back to persisting without scrollback when quota is exceeded', () => {
-    const previousStorage = window.localStorage
-
-    class LimitedStorage extends MockStorage {
-      public constructor(private readonly maxBytes: number) {
-        super()
-      }
-
-      public override setItem(key: string, value: string): void {
-        if (value.length > this.maxBytes) {
-          const error =
-            typeof DOMException === 'undefined'
-              ? Object.assign(new Error('Quota exceeded'), { name: 'QuotaExceededError' })
-              : new DOMException('Quota exceeded', 'QuotaExceededError')
-          throw error
-        }
-
-        super.setItem(key, value)
-      }
-    }
-
-    Object.defineProperty(window, 'localStorage', {
-      configurable: true,
-      writable: true,
-      value: new LimitedStorage(1500),
-    })
-
-    const state = toPersistedState(
-      [
-        {
-          id: 'workspace-1',
-          name: 'cove',
-          path: '/tmp/cove',
-          viewport: { x: 0, y: 0, zoom: 1 },
-          isMinimapVisible: true,
-          spaces: [],
-          activeSpaceId: null,
-          nodes: [
-            {
-              id: 'terminal-1',
-              type: 'terminalNode',
-              position: { x: 120, y: 120 },
-              data: {
-                sessionId: 'session-1',
-                title: 'terminal-1',
-                width: 460,
-                height: 300,
-                kind: 'terminal',
-                status: null,
-                startedAt: null,
-                endedAt: null,
-                exitCode: null,
-                lastError: null,
-                scrollback: 'x'.repeat(5000),
-                agent: null,
-                task: null,
-              },
-            },
-          ],
-        },
-      ],
-      'workspace-1',
-    )
-
-    const result = writePersistedState(state)
-    expect(result.ok).toBe(true)
-    expect(result.ok ? result.level : null).toBe('no_scrollback')
-
-    const restored = readPersistedState()
-    expect(restored?.workspaces[0]?.nodes[0]?.scrollback).toBeNull()
-
-    Object.defineProperty(window, 'localStorage', {
-      configurable: true,
-      writable: true,
-      value: previousStorage,
-    })
   })
 })

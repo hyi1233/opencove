@@ -1,0 +1,413 @@
+import { webContents } from 'electron'
+import type { IPty } from 'node-pty'
+import { IPC_CHANNELS } from '../../../../shared/constants/ipc'
+import type {
+  AgentProviderId,
+  TerminalDataEvent,
+  TerminalDoneEvent,
+  TerminalExitEvent,
+} from '../../../../shared/types/api'
+import { locateAgentResumeSessionId } from '../../../infrastructure/agent/AgentSessionLocator'
+import { PtyManager, type SpawnPtyOptions } from '../../../infrastructure/pty/PtyManager'
+import { resolveSessionFilePath } from '../../../infrastructure/session/SessionFileResolver'
+import { SessionDoneWatcher } from '../../../infrastructure/session/SessionDoneWatcher'
+
+const PTY_DATA_FLUSH_DELAY_MS = 16
+const PTY_DATA_MAX_BATCH_CHARS = 64_000
+
+export interface StartSessionDoneWatcherInput {
+  sessionId: string
+  provider: AgentProviderId
+  cwd: string
+  resumeSessionId: string | null
+  startedAtMs: number
+}
+
+export interface PtyRuntime {
+  spawnSession: (options: SpawnPtyOptions) => { sessionId: string }
+  write: (sessionId: string, data: string) => void
+  resize: (sessionId: string, cols: number, rows: number) => void
+  kill: (sessionId: string) => void
+  attach: (contentsId: number, sessionId: string) => void
+  detach: (contentsId: number, sessionId: string) => void
+  snapshot: (sessionId: string) => string
+  startSessionDoneWatcher: (input: StartSessionDoneWatcherInput) => void
+  dispose: () => void
+}
+
+function reportDoneWatcherIssue(message: string): void {
+  if (process.env.NODE_ENV === 'test') {
+    return
+  }
+
+  process.stderr.write(`${message}\n`)
+}
+
+export function createPtyRuntime(): PtyRuntime {
+  const ptyManager = new PtyManager()
+  const terminalProbeBufferBySession = new Map<string, string>()
+  const isTerminalAttachedBySession = new Map<string, boolean>()
+  const doneWatcherBySession = new Map<string, SessionDoneWatcher>()
+  const doneWatcherVersionBySession = new Map<string, number>()
+  const pendingPtyDataChunksBySession = new Map<string, string[]>()
+  const pendingPtyDataCharsBySession = new Map<string, number>()
+  const pendingPtyDataFlushTimerBySession = new Map<string, NodeJS.Timeout>()
+  const ptyDataSubscribersBySessionId = new Map<string, Set<number>>()
+  const ptyDataSessionsByWebContentsId = new Map<number, Set<string>>()
+  const ptyDataSubscribedWebContentsIds = new Set<number>()
+
+  const sendToAllWindows = <Payload>(channel: string, payload: Payload): void => {
+    for (const content of webContents.getAllWebContents()) {
+      if (content.isDestroyed() || content.getType() !== 'window') {
+        continue
+      }
+
+      try {
+        content.send(channel, payload)
+      } catch {
+        // Ignore delivery failures (destroyed webContents, navigation in progress, etc.)
+      }
+    }
+  }
+
+  const cleanupPtyDataSubscriptions = (contentsId: number): void => {
+    const sessions = ptyDataSessionsByWebContentsId.get(contentsId)
+    if (!sessions) {
+      return
+    }
+
+    ptyDataSessionsByWebContentsId.delete(contentsId)
+
+    for (const sessionId of sessions) {
+      const subscribers = ptyDataSubscribersBySessionId.get(sessionId)
+      if (!subscribers) {
+        continue
+      }
+
+      subscribers.delete(contentsId)
+      if (subscribers.size === 0) {
+        ptyDataSubscribersBySessionId.delete(sessionId)
+      }
+    }
+  }
+
+  const trackWebContentsSubscriptionLifecycle = (contentsId: number): void => {
+    if (ptyDataSubscribedWebContentsIds.has(contentsId)) {
+      return
+    }
+
+    const content = webContents.fromId(contentsId)
+    if (!content) {
+      return
+    }
+
+    ptyDataSubscribedWebContentsIds.add(contentsId)
+    content.once('destroyed', () => {
+      ptyDataSubscribedWebContentsIds.delete(contentsId)
+      cleanupPtyDataSubscriptions(contentsId)
+    })
+  }
+
+  const sendPtyDataToSubscribers = (eventPayload: TerminalDataEvent): void => {
+    const subscribers = ptyDataSubscribersBySessionId.get(eventPayload.sessionId)
+    if (!subscribers || subscribers.size === 0) {
+      return
+    }
+
+    for (const contentsId of subscribers) {
+      const content = webContents.fromId(contentsId)
+      if (!content || content.isDestroyed() || content.getType() !== 'window') {
+        continue
+      }
+
+      try {
+        content.send(IPC_CHANNELS.ptyData, eventPayload)
+      } catch {
+        // Ignore delivery failures (destroyed webContents, navigation in progress, etc.)
+      }
+    }
+  }
+
+  const flushPtyDataBroadcast = (sessionId: string): void => {
+    const timer = pendingPtyDataFlushTimerBySession.get(sessionId)
+    if (timer) {
+      clearTimeout(timer)
+      pendingPtyDataFlushTimerBySession.delete(sessionId)
+    }
+
+    const chunks = pendingPtyDataChunksBySession.get(sessionId)
+    if (!chunks || chunks.length === 0) {
+      pendingPtyDataChunksBySession.delete(sessionId)
+      pendingPtyDataCharsBySession.delete(sessionId)
+      return
+    }
+
+    pendingPtyDataChunksBySession.delete(sessionId)
+    pendingPtyDataCharsBySession.delete(sessionId)
+
+    const eventPayload: TerminalDataEvent = { sessionId, data: chunks.join('') }
+    sendPtyDataToSubscribers(eventPayload)
+  }
+
+  const queuePtyDataBroadcast = (sessionId: string, data: string): void => {
+    if (data.length === 0) {
+      return
+    }
+
+    const chunks = pendingPtyDataChunksBySession.get(sessionId) ?? []
+    if (chunks.length === 0) {
+      pendingPtyDataChunksBySession.set(sessionId, chunks)
+    }
+
+    chunks.push(data)
+    pendingPtyDataCharsBySession.set(
+      sessionId,
+      (pendingPtyDataCharsBySession.get(sessionId) ?? 0) + data.length,
+    )
+
+    if ((pendingPtyDataCharsBySession.get(sessionId) ?? 0) >= PTY_DATA_MAX_BATCH_CHARS) {
+      flushPtyDataBroadcast(sessionId)
+      return
+    }
+
+    if (pendingPtyDataFlushTimerBySession.has(sessionId)) {
+      return
+    }
+
+    pendingPtyDataFlushTimerBySession.set(
+      sessionId,
+      setTimeout(() => {
+        flushPtyDataBroadcast(sessionId)
+      }, PTY_DATA_FLUSH_DELAY_MS),
+    )
+  }
+
+  const registerSessionProbeState = (sessionId: string): void => {
+    isTerminalAttachedBySession.set(sessionId, false)
+    terminalProbeBufferBySession.set(sessionId, '')
+  }
+
+  const markSessionAttached = (sessionId: string): void => {
+    isTerminalAttachedBySession.set(sessionId, true)
+    terminalProbeBufferBySession.delete(sessionId)
+  }
+
+  const clearSessionProbeState = (sessionId: string): void => {
+    isTerminalAttachedBySession.delete(sessionId)
+    terminalProbeBufferBySession.delete(sessionId)
+  }
+
+  const bumpDoneWatcherVersion = (sessionId: string): number => {
+    const next = (doneWatcherVersionBySession.get(sessionId) ?? 0) + 1
+    doneWatcherVersionBySession.set(sessionId, next)
+    return next
+  }
+
+  const clearSessionDoneWatcher = (sessionId: string): void => {
+    bumpDoneWatcherVersion(sessionId)
+
+    const watcher = doneWatcherBySession.get(sessionId)
+    if (watcher) {
+      watcher.dispose()
+      doneWatcherBySession.delete(sessionId)
+    }
+  }
+
+  const startSessionDoneWatcher = ({
+    sessionId,
+    provider,
+    cwd,
+    resumeSessionId,
+    startedAtMs,
+  }: StartSessionDoneWatcherInput): void => {
+    clearSessionDoneWatcher(sessionId)
+
+    const watcherVersion = doneWatcherVersionBySession.get(sessionId) ?? 0
+
+    void (async () => {
+      const resolvedSessionId =
+        resumeSessionId ??
+        (await locateAgentResumeSessionId({
+          provider,
+          cwd,
+          startedAtMs,
+          timeoutMs: 20_000,
+        }))
+
+      if (!resolvedSessionId) {
+        reportDoneWatcherIssue(
+          `[cove] Unable to resolve ${provider} session id for DONE watcher (${sessionId})`,
+        )
+        return
+      }
+
+      const sessionFilePath = await resolveSessionFilePath({
+        provider,
+        cwd,
+        sessionId: resolvedSessionId,
+        startedAtMs,
+        timeoutMs: 20_000,
+      })
+
+      if (!sessionFilePath) {
+        reportDoneWatcherIssue(
+          `[cove] Unable to locate session file for DONE watcher (${provider}, ${resolvedSessionId})`,
+        )
+        return
+      }
+
+      if ((doneWatcherVersionBySession.get(sessionId) ?? 0) !== watcherVersion) {
+        return
+      }
+
+      const watcher = new SessionDoneWatcher({
+        provider,
+        sessionId,
+        filePath: sessionFilePath,
+        onDone: doneSessionId => {
+          clearSessionDoneWatcher(doneSessionId)
+
+          const eventPayload: TerminalDoneEvent = {
+            sessionId: doneSessionId,
+            signal: 'done',
+          }
+          sendToAllWindows(IPC_CHANNELS.ptyDone, eventPayload)
+        },
+        onError: error => {
+          const detail =
+            error instanceof Error ? `${error.name}: ${error.message}` : 'unknown watcher error'
+          reportDoneWatcherIssue(
+            `[cove] DONE watcher failed for ${provider} session ${sessionId}: ${detail}`,
+          )
+          clearSessionDoneWatcher(sessionId)
+        },
+      })
+
+      if ((doneWatcherVersionBySession.get(sessionId) ?? 0) !== watcherVersion) {
+        watcher.dispose()
+        return
+      }
+
+      doneWatcherBySession.set(sessionId, watcher)
+      watcher.start()
+    })()
+  }
+
+  const resolveTerminalProbeReplies = (sessionId: string, outputChunk: string): void => {
+    if (outputChunk.includes('\u001b[6n')) {
+      ptyManager.write(sessionId, '\u001b[1;1R')
+    }
+
+    if (outputChunk.includes('\u001b[?6n')) {
+      ptyManager.write(sessionId, '\u001b[?1;1R')
+    }
+
+    if (outputChunk.includes('\u001b[c')) {
+      ptyManager.write(sessionId, '\u001b[?1;2c')
+    }
+
+    if (outputChunk.includes('\u001b[>c')) {
+      ptyManager.write(sessionId, '\u001b[>0;115;0c')
+    }
+
+    if (outputChunk.includes('\u001b[?u')) {
+      ptyManager.write(sessionId, '\u001b[?0u')
+    }
+  }
+
+  const wirePtySessionEvents = (sessionId: string, pty: IPty): void => {
+    pty.onData(data => {
+      if (!isTerminalAttachedBySession.get(sessionId)) {
+        const probeBuffer = `${terminalProbeBufferBySession.get(sessionId) ?? ''}${data}`
+        resolveTerminalProbeReplies(sessionId, probeBuffer)
+        terminalProbeBufferBySession.set(sessionId, probeBuffer.slice(-32))
+      }
+
+      ptyManager.appendSnapshotData(sessionId, data)
+
+      queuePtyDataBroadcast(sessionId, data)
+    })
+
+    pty.onExit(exit => {
+      flushPtyDataBroadcast(sessionId)
+      clearSessionProbeState(sessionId)
+      clearSessionDoneWatcher(sessionId)
+      ptyManager.delete(sessionId)
+      const eventPayload: TerminalExitEvent = {
+        sessionId,
+        exitCode: exit.exitCode,
+      }
+      sendToAllWindows(IPC_CHANNELS.ptyExit, eventPayload)
+    })
+  }
+
+  return {
+    spawnSession: options => {
+      const { sessionId, pty } = ptyManager.spawnSession(options)
+      registerSessionProbeState(sessionId)
+      wirePtySessionEvents(sessionId, pty)
+      return { sessionId }
+    },
+    write: (sessionId, data) => {
+      markSessionAttached(sessionId)
+      ptyManager.write(sessionId, data)
+    },
+    resize: (sessionId, cols, rows) => {
+      markSessionAttached(sessionId)
+      ptyManager.resize(sessionId, cols, rows)
+    },
+    kill: sessionId => {
+      flushPtyDataBroadcast(sessionId)
+      clearSessionProbeState(sessionId)
+      clearSessionDoneWatcher(sessionId)
+      ptyManager.kill(sessionId)
+    },
+    attach: (contentsId, sessionId) => {
+      trackWebContentsSubscriptionLifecycle(contentsId)
+
+      const sessions = ptyDataSessionsByWebContentsId.get(contentsId) ?? new Set<string>()
+      sessions.add(sessionId)
+      ptyDataSessionsByWebContentsId.set(contentsId, sessions)
+
+      const subscribers = ptyDataSubscribersBySessionId.get(sessionId) ?? new Set<number>()
+      subscribers.add(contentsId)
+      ptyDataSubscribersBySessionId.set(sessionId, subscribers)
+    },
+    detach: (contentsId, sessionId) => {
+      const sessions = ptyDataSessionsByWebContentsId.get(contentsId)
+      sessions?.delete(sessionId)
+      if (sessions && sessions.size === 0) {
+        ptyDataSessionsByWebContentsId.delete(contentsId)
+      }
+
+      const subscribers = ptyDataSubscribersBySessionId.get(sessionId)
+      subscribers?.delete(contentsId)
+      if (subscribers && subscribers.size === 0) {
+        ptyDataSubscribersBySessionId.delete(sessionId)
+      }
+    },
+    snapshot: sessionId => ptyManager.snapshot(sessionId),
+    startSessionDoneWatcher,
+    dispose: () => {
+      doneWatcherBySession.forEach(watcher => {
+        watcher.dispose()
+      })
+      doneWatcherBySession.clear()
+      doneWatcherVersionBySession.clear()
+
+      pendingPtyDataFlushTimerBySession.forEach(timer => {
+        clearTimeout(timer)
+      })
+      pendingPtyDataFlushTimerBySession.clear()
+      pendingPtyDataChunksBySession.clear()
+      pendingPtyDataCharsBySession.clear()
+      ptyDataSubscribersBySessionId.clear()
+      ptyDataSessionsByWebContentsId.clear()
+      ptyDataSubscribedWebContentsIds.clear()
+      terminalProbeBufferBySession.clear()
+      isTerminalAttachedBySession.clear()
+
+      ptyManager.disposeAll()
+    },
+  }
+}

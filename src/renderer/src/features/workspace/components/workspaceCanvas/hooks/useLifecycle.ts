@@ -1,0 +1,164 @@
+import { useEffect } from 'react'
+import type { Edge, Node, ReactFlowInstance, Viewport } from '@xyflow/react'
+import type { TerminalNodeData } from '../../../types'
+import {
+  createCanvasInputModalityState,
+  type CanvasInputModalityState,
+  type DetectedCanvasInputMode,
+} from '../../../utils/inputModality'
+import type {
+  ContextMenuState,
+  EmptySelectionPromptState,
+  SelectionDraftState,
+  TrackpadGestureLockState,
+} from '../types'
+
+interface UseWorkspaceCanvasLifecycleParams {
+  workspaceId: string
+  persistedMinimapVisible: boolean
+  setIsMinimapVisible: React.Dispatch<React.SetStateAction<boolean>>
+  setSelectedNodeIds: React.Dispatch<React.SetStateAction<string[]>>
+  setContextMenu: React.Dispatch<React.SetStateAction<ContextMenuState | null>>
+  setEmptySelectionPrompt: React.Dispatch<React.SetStateAction<EmptySelectionPromptState | null>>
+  cancelSpaceRename: () => void
+  selectionDraftRef: React.MutableRefObject<SelectionDraftState | null>
+  trackpadGestureLockRef: React.MutableRefObject<TrackpadGestureLockState | null>
+  restoredViewportWorkspaceIdRef: React.MutableRefObject<string | null>
+  reactFlow: ReactFlowInstance<Node<TerminalNodeData>, Edge>
+  viewport: Viewport
+  viewportRef: React.MutableRefObject<Viewport>
+  canvasInputModeSetting: 'auto' | DetectedCanvasInputMode
+  inputModalityStateRef: React.MutableRefObject<CanvasInputModalityState>
+  setDetectedCanvasInputMode: React.Dispatch<React.SetStateAction<DetectedCanvasInputMode>>
+  isShiftPressedRef: React.MutableRefObject<boolean>
+  setIsShiftPressed: React.Dispatch<React.SetStateAction<boolean>>
+  focusNodeId?: string | null
+  focusSequence?: number
+  nodesRef: React.MutableRefObject<Node<TerminalNodeData>[]>
+}
+
+export function useWorkspaceCanvasLifecycle({
+  workspaceId,
+  persistedMinimapVisible,
+  setIsMinimapVisible,
+  setSelectedNodeIds,
+  setContextMenu,
+  setEmptySelectionPrompt,
+  cancelSpaceRename,
+  selectionDraftRef,
+  trackpadGestureLockRef,
+  restoredViewportWorkspaceIdRef,
+  reactFlow,
+  viewport,
+  viewportRef,
+  canvasInputModeSetting,
+  inputModalityStateRef,
+  setDetectedCanvasInputMode,
+  isShiftPressedRef,
+  setIsShiftPressed,
+  focusNodeId,
+  focusSequence,
+  nodesRef,
+}: UseWorkspaceCanvasLifecycleParams): void {
+  useEffect(() => {
+    setIsMinimapVisible(persistedMinimapVisible)
+  }, [persistedMinimapVisible, setIsMinimapVisible, workspaceId])
+
+  useEffect(() => {
+    setSelectedNodeIds([])
+    setContextMenu(null)
+    setEmptySelectionPrompt(null)
+    cancelSpaceRename()
+    selectionDraftRef.current = null
+    trackpadGestureLockRef.current = null
+  }, [
+    cancelSpaceRename,
+    selectionDraftRef,
+    setContextMenu,
+    setEmptySelectionPrompt,
+    setSelectedNodeIds,
+    trackpadGestureLockRef,
+    workspaceId,
+  ])
+
+  useEffect(() => {
+    if (restoredViewportWorkspaceIdRef.current === workspaceId) {
+      return
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      reactFlow.setViewport(viewport, {
+        duration: 0,
+      })
+      restoredViewportWorkspaceIdRef.current = workspaceId
+    })
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+    }
+  }, [reactFlow, restoredViewportWorkspaceIdRef, viewport, workspaceId])
+
+  useEffect(() => {
+    viewportRef.current = viewport
+  }, [viewport, viewportRef])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') {
+        isShiftPressedRef.current = true
+        setIsShiftPressed(true)
+      }
+    }
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') {
+        isShiftPressedRef.current = false
+        setIsShiftPressed(false)
+      }
+    }
+
+    const handleBlur = () => {
+      isShiftPressedRef.current = false
+      setIsShiftPressed(false)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    window.addEventListener('blur', handleBlur)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+      window.removeEventListener('blur', handleBlur)
+    }
+  }, [isShiftPressedRef, setIsShiftPressed])
+
+  useEffect(() => {
+    if (canvasInputModeSetting === 'auto') {
+      return
+    }
+
+    inputModalityStateRef.current = createCanvasInputModalityState(canvasInputModeSetting)
+    setDetectedCanvasInputMode(canvasInputModeSetting)
+  }, [canvasInputModeSetting, inputModalityStateRef, setDetectedCanvasInputMode])
+
+  useEffect(() => {
+    if (!focusNodeId) {
+      return
+    }
+
+    const target = nodesRef.current.find(node => node.id === focusNodeId)
+    if (!target) {
+      return
+    }
+
+    reactFlow.setCenter(
+      target.position.x + target.data.width / 2,
+      target.position.y + target.data.height / 2,
+      {
+        duration: 220,
+        zoom: 1,
+      },
+    )
+  }, [focusNodeId, focusSequence, nodesRef, reactFlow])
+}

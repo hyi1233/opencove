@@ -1,0 +1,227 @@
+import { useCallback, type MutableRefObject } from 'react'
+import type { Node } from '@xyflow/react'
+import type { AgentNodeData, TerminalNodeData } from '../../../types'
+import { providerTitlePrefix, toErrorMessage } from '../helpers'
+
+interface UseAgentNodeLifecycleParams {
+  nodesRef: MutableRefObject<Node<TerminalNodeData>[]>
+  setNodes: (
+    updater: (prevNodes: Node<TerminalNodeData>[]) => Node<TerminalNodeData>[],
+    options?: { syncLayout?: boolean },
+  ) => void
+  bumpAgentLaunchToken: (nodeId: string) => number
+  isAgentLaunchTokenCurrent: (nodeId: string, token: number) => boolean
+}
+
+export function useWorkspaceCanvasAgentNodeLifecycle({
+  nodesRef,
+  setNodes,
+  bumpAgentLaunchToken,
+  isAgentLaunchTokenCurrent,
+}: UseAgentNodeLifecycleParams): {
+  buildAgentNodeTitle: (
+    provider: AgentNodeData['provider'],
+    effectiveModel: string | null,
+  ) => string
+  launchAgentInNode: (nodeId: string, mode: 'new' | 'resume') => Promise<void>
+  stopAgentNode: (nodeId: string) => Promise<void>
+} {
+  const buildAgentNodeTitle = useCallback(
+    (provider: AgentNodeData['provider'], effectiveModel: string | null): string => {
+      return `${providerTitlePrefix(provider)} · ${effectiveModel ?? 'default-model'}`
+    },
+    [],
+  )
+
+  const launchAgentInNode = useCallback(
+    async (nodeId: string, mode: 'new' | 'resume') => {
+      const node = nodesRef.current.find(item => item.id === nodeId)
+      if (!node || node.data.kind !== 'agent' || !node.data.agent) {
+        return
+      }
+
+      const launchData = node.data.agent
+
+      if (mode === 'new' && launchData.prompt.trim().length === 0) {
+        setNodes(prevNodes =>
+          prevNodes.map(item => {
+            if (item.id !== nodeId) {
+              return item
+            }
+
+            return {
+              ...item,
+              data: {
+                ...item.data,
+                status: 'failed',
+                lastError: '任务提示词不能为空。',
+              },
+            }
+          }),
+        )
+        return
+      }
+
+      const launchToken = bumpAgentLaunchToken(nodeId)
+
+      if (launchData.shouldCreateDirectory && launchData.directoryMode === 'custom') {
+        await window.coveApi.workspace.ensureDirectory({ path: launchData.executionDirectory })
+
+        if (!isAgentLaunchTokenCurrent(nodeId, launchToken)) {
+          return
+        }
+      }
+
+      if (node.data.sessionId.length > 0) {
+        await window.coveApi.pty.kill({ sessionId: node.data.sessionId })
+
+        if (!isAgentLaunchTokenCurrent(nodeId, launchToken)) {
+          return
+        }
+      }
+
+      if (!isAgentLaunchTokenCurrent(nodeId, launchToken)) {
+        return
+      }
+
+      setNodes(prevNodes =>
+        prevNodes.map(item => {
+          if (item.id !== nodeId) {
+            return item
+          }
+
+          return {
+            ...item,
+            data: {
+              ...item.data,
+              status: 'restoring',
+              endedAt: null,
+              exitCode: null,
+              lastError: null,
+            },
+          }
+        }),
+      )
+
+      try {
+        const launched = await window.coveApi.agent.launch({
+          provider: launchData.provider,
+          cwd: launchData.executionDirectory,
+          prompt: launchData.prompt,
+          mode,
+          model: launchData.model,
+          resumeSessionId: mode === 'resume' ? launchData.resumeSessionId : null,
+          cols: 80,
+          rows: 24,
+        })
+
+        if (!isAgentLaunchTokenCurrent(nodeId, launchToken)) {
+          void window.coveApi.pty.kill({ sessionId: launched.sessionId }).catch(() => undefined)
+          return
+        }
+
+        if (!nodesRef.current.some(item => item.id === nodeId)) {
+          void window.coveApi.pty.kill({ sessionId: launched.sessionId }).catch(() => undefined)
+          return
+        }
+
+        setNodes(prevNodes =>
+          prevNodes.map(item => {
+            if (item.id !== nodeId) {
+              return item
+            }
+
+            const nextAgentData: AgentNodeData = {
+              ...launchData,
+              launchMode: launched.launchMode,
+              effectiveModel: launched.effectiveModel,
+              resumeSessionId: launched.resumeSessionId ?? launchData.resumeSessionId,
+            }
+
+            return {
+              ...item,
+              data: {
+                ...item.data,
+                sessionId: launched.sessionId,
+                title: buildAgentNodeTitle(launchData.provider, launched.effectiveModel),
+                status: 'running',
+                startedAt:
+                  mode === 'new' ? new Date().toISOString() : (item.data.startedAt ?? null),
+                endedAt: null,
+                exitCode: null,
+                lastError: null,
+                scrollback: mode === 'new' ? null : item.data.scrollback,
+                agent: nextAgentData,
+              },
+            }
+          }),
+        )
+      } catch (error) {
+        if (!isAgentLaunchTokenCurrent(nodeId, launchToken)) {
+          return
+        }
+
+        const errorMessage = `Agent 启动失败：${toErrorMessage(error)}`
+
+        setNodes(prevNodes =>
+          prevNodes.map(item => {
+            if (item.id !== nodeId) {
+              return item
+            }
+
+            return {
+              ...item,
+              data: {
+                ...item.data,
+                status: 'failed',
+                endedAt: new Date().toISOString(),
+                lastError: errorMessage,
+              },
+            }
+          }),
+        )
+      }
+    },
+    [buildAgentNodeTitle, bumpAgentLaunchToken, isAgentLaunchTokenCurrent, nodesRef, setNodes],
+  )
+
+  const stopAgentNode = useCallback(
+    async (nodeId: string) => {
+      const node = nodesRef.current.find(item => item.id === nodeId)
+      if (!node || node.data.kind !== 'agent') {
+        return
+      }
+
+      bumpAgentLaunchToken(nodeId)
+
+      if (node.data.sessionId.length > 0) {
+        await window.coveApi.pty.kill({ sessionId: node.data.sessionId })
+      }
+
+      setNodes(prevNodes =>
+        prevNodes.map(item => {
+          if (item.id !== nodeId) {
+            return item
+          }
+
+          return {
+            ...item,
+            data: {
+              ...item.data,
+              status: 'stopped',
+              endedAt: new Date().toISOString(),
+              exitCode: null,
+            },
+          }
+        }),
+      )
+    },
+    [bumpAgentLaunchToken, nodesRef, setNodes],
+  )
+
+  return {
+    buildAgentNodeTitle,
+    launchAgentInNode,
+    stopAgentNode,
+  }
+}

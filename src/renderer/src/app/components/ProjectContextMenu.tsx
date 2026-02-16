@@ -1,0 +1,39 @@
+import React from 'react'
+
+export function ProjectContextMenu({
+  workspaceId,
+  x,
+  y,
+  onRequestRemove,
+}: {
+  workspaceId: string
+  x: number
+  y: number
+  onRequestRemove: (workspaceId: string) => void
+}): React.JSX.Element {
+  return (
+    <div
+      className="workspace-context-menu workspace-project-context-menu"
+      style={{
+        top: y,
+        left: x,
+      }}
+      onMouseDown={event => {
+        event.stopPropagation()
+      }}
+      onClick={event => {
+        event.stopPropagation()
+      }}
+    >
+      <button
+        type="button"
+        data-testid={`workspace-project-remove-${workspaceId}`}
+        onClick={() => {
+          onRequestRemove(workspaceId)
+        }}
+      >
+        Remove Project
+      </button>
+    </div>
+  )
+}

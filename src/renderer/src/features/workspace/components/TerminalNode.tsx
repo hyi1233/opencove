@@ -5,8 +5,17 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import type { AgentNodeData, AgentRuntimeStatus, WorkspaceNodeKind } from '../types'
-import { createRollingTextBuffer } from '../utils/rollingTextBuffer'
 import { resolveStablePtySize } from '../utils/terminalResize'
+import {
+  MIN_HEIGHT,
+  MIN_WIDTH,
+  TERMINAL_LAYOUT_SYNC_EVENT,
+  type ResizeAxis,
+} from './terminalNode/constants'
+import { mergeScrollbackSnapshots } from './terminalNode/scrollback'
+import { getStatusClassName, getStatusLabel } from './terminalNode/status'
+import { useTerminalScrollback } from './terminalNode/useScrollback'
+import { shouldStopWheelPropagation } from './terminalNode/wheel'
 
 interface TerminalNodeProps {
   sessionId: string
@@ -25,109 +34,6 @@ interface TerminalNodeProps {
   onStop?: () => void
   onRerun?: () => void
   onResume?: () => void
-}
-
-type ResizeAxis = 'horizontal' | 'vertical'
-
-const MIN_WIDTH = 320
-const MIN_HEIGHT = 220
-const MAX_SCROLLBACK_CHARS = 200_000
-const SCROLLBACK_PUBLISH_DELAY_MS = 800
-const MAX_OVERLAP_PROBE_CHARS = 4096
-const TERMINAL_LAYOUT_SYNC_EVENT = 'cove:terminal-layout-sync'
-
-function truncateScrollback(snapshot: string): string {
-  if (snapshot.length <= MAX_SCROLLBACK_CHARS) {
-    return snapshot
-  }
-
-  return snapshot.slice(-MAX_SCROLLBACK_CHARS)
-}
-
-function calculateSuffixPrefixOverlap(left: string, right: string): number {
-  const maxLength = Math.min(left.length, right.length, MAX_OVERLAP_PROBE_CHARS)
-
-  for (let size = maxLength; size > 0; size -= 1) {
-    if (left.slice(-size) === right.slice(0, size)) {
-      return size
-    }
-  }
-
-  return 0
-}
-
-function mergeScrollbackSnapshots(persisted: string, live: string): string {
-  const persistedSnapshot = truncateScrollback(persisted)
-  const liveSnapshot = truncateScrollback(live)
-
-  if (persistedSnapshot.length === 0) {
-    return liveSnapshot
-  }
-
-  if (liveSnapshot.length === 0) {
-    return persistedSnapshot
-  }
-
-  if (persistedSnapshot === liveSnapshot) {
-    return liveSnapshot
-  }
-
-  if (liveSnapshot.includes(persistedSnapshot)) {
-    return liveSnapshot
-  }
-
-  if (persistedSnapshot.includes(liveSnapshot)) {
-    return persistedSnapshot
-  }
-
-  const overlap = calculateSuffixPrefixOverlap(persistedSnapshot, liveSnapshot)
-  return truncateScrollback(`${persistedSnapshot}${liveSnapshot.slice(overlap)}`)
-}
-
-function getStatusLabel(status: AgentRuntimeStatus | null): string {
-  switch (status) {
-    case 'running':
-      return 'Running'
-    case 'exited':
-      return 'Exited'
-    case 'failed':
-      return 'Failed'
-    case 'stopped':
-      return 'Stopped'
-    case 'restoring':
-      return 'Restoring'
-    default:
-      return 'Running'
-  }
-}
-
-function getStatusClassName(status: AgentRuntimeStatus | null): string {
-  switch (status) {
-    case 'exited':
-      return 'terminal-node__status--exited'
-    case 'failed':
-      return 'terminal-node__status--failed'
-    case 'stopped':
-      return 'terminal-node__status--stopped'
-    case 'restoring':
-      return 'terminal-node__status--restoring'
-    case 'running':
-    default:
-      return 'terminal-node__status--running'
-  }
-}
-
-function shouldStopWheelPropagation(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return true
-  }
-
-  const canvas = target.closest('.workspace-canvas')
-  if (!(canvas instanceof HTMLElement)) {
-    return true
-  }
-
-  return canvas.dataset.canvasInputMode !== 'trackpad'
 }
 
 export function TerminalNode({
@@ -161,16 +67,17 @@ export function TerminalNode({
   const isPointerResizingRef = useRef(false)
   const lastSyncedPtySizeRef = useRef<{ cols: number; rows: number } | null>(null)
 
-  const publishTimerRef = useRef<number | null>(null)
-  const scrollbackBufferRef = useRef(
-    createRollingTextBuffer({
-      maxChars: MAX_SCROLLBACK_CHARS,
-      initial: truncateScrollback(scrollback ?? ''),
-    }),
-  )
-  const publishedScrollbackRef = useRef(truncateScrollback(scrollback ?? ''))
-  const hasPendingScrollbackRef = useRef(false)
-  const onScrollbackChangeRef = useRef<TerminalNodeProps['onScrollbackChange']>(onScrollbackChange)
+  const {
+    scrollbackBufferRef,
+    markScrollbackDirty,
+    scheduleScrollbackPublish,
+    disposeScrollbackPublish,
+  } = useTerminalScrollback({
+    sessionId,
+    scrollback,
+    onScrollbackChange,
+    isPointerResizingRef,
+  })
 
   const draftSizeRef = useRef<{ width: number; height: number } | null>(null)
   const [isResizing, setIsResizing] = useState(false)
@@ -194,86 +101,12 @@ export function TerminalNode({
     lastSyncedPtySizeRef.current = null
   }, [sessionId])
 
-  useEffect(() => {
-    const normalized = truncateScrollback(scrollback ?? '')
-    scrollbackBufferRef.current.set(normalized)
-    publishedScrollbackRef.current = normalized
-    hasPendingScrollbackRef.current = false
-
-    if (publishTimerRef.current !== null) {
-      window.clearTimeout(publishTimerRef.current)
-      publishTimerRef.current = null
-    }
-  }, [scrollback, sessionId])
-
-  useEffect(() => {
-    onScrollbackChangeRef.current = onScrollbackChange
-  }, [onScrollbackChange])
-
   const shouldLockPtyRowShrink = kind === 'agent' && agentProvider === 'codex'
 
   const renderedSize = draftSize ?? { width, height }
   const sizeStyle = useMemo(
     () => ({ width: renderedSize.width, height: renderedSize.height }),
     [renderedSize.height, renderedSize.width],
-  )
-
-  const flushScrollback = useCallback(() => {
-    const onScrollbackChangeFn = onScrollbackChangeRef.current
-    if (!onScrollbackChangeFn) {
-      hasPendingScrollbackRef.current = false
-      return
-    }
-
-    if (!hasPendingScrollbackRef.current) {
-      return
-    }
-
-    hasPendingScrollbackRef.current = false
-    const pending = scrollbackBufferRef.current.snapshot()
-    if (pending === publishedScrollbackRef.current) {
-      return
-    }
-
-    publishedScrollbackRef.current = pending
-    onScrollbackChangeFn(pending)
-  }, [])
-
-  const scheduleScrollbackPublish = useCallback(
-    (immediate = false) => {
-      if (immediate) {
-        if (publishTimerRef.current !== null) {
-          window.clearTimeout(publishTimerRef.current)
-          publishTimerRef.current = null
-        }
-
-        flushScrollback()
-        return
-      }
-
-      if (publishTimerRef.current !== null) {
-        return
-      }
-
-      publishTimerRef.current = window.setTimeout(() => {
-        publishTimerRef.current = null
-        flushScrollback()
-      }, SCROLLBACK_PUBLISH_DELAY_MS)
-    },
-    [flushScrollback],
-  )
-
-  const markScrollbackDirty = useCallback(
-    (immediate = false) => {
-      hasPendingScrollbackRef.current = true
-
-      if (isPointerResizingRef.current) {
-        return
-      }
-
-      scheduleScrollbackPublish(immediate)
-    },
-    [scheduleScrollbackPublish],
   )
 
   const syncTerminalSize = useCallback(() => {
@@ -351,6 +184,9 @@ export function TerminalNode({
     if (containerRef.current) {
       terminal.open(containerRef.current)
       requestAnimationFrame(syncTerminalSize)
+      if (window.coveApi.meta.isTest) {
+        terminal.focus()
+      }
     }
 
     const disposable = terminal.onData(data => {
@@ -377,7 +213,7 @@ export function TerminalNode({
           return
         }
 
-        const exitMessage = `\r\n[process exited with code ${event.exitCode}]\r\n`
+        const exitMessage = `\\r\\n[process exited with code ${event.exitCode}]\\r\\n`
         terminal.write(exitMessage)
         scrollbackBufferRef.current.append(exitMessage)
         markScrollbackDirty(true)
@@ -447,16 +283,18 @@ export function TerminalNode({
       disposable.dispose()
       unsubscribeData?.()
       unsubscribeExit?.()
-      scheduleScrollbackPublish(true)
-      if (publishTimerRef.current !== null) {
-        window.clearTimeout(publishTimerRef.current)
-        publishTimerRef.current = null
-      }
+      disposeScrollbackPublish()
       terminal.dispose()
       terminalRef.current = null
       fitAddonRef.current = null
     }
-  }, [markScrollbackDirty, scheduleScrollbackPublish, sessionId, syncTerminalSize])
+  }, [
+    disposeScrollbackPublish,
+    markScrollbackDirty,
+    scrollbackBufferRef,
+    sessionId,
+    syncTerminalSize,
+  ])
 
   useEffect(() => {
     const frame = requestAnimationFrame(syncTerminalSize)
