@@ -7,6 +7,7 @@ import type {
   WriteTerminalInput,
 } from '../../../../shared/types/api'
 import type { SpawnPtyOptions } from '../../../infrastructure/pty/PtyManager'
+import { isAbsolute } from 'node:path'
 
 export function normalizeSpawnTerminalPayload(payload: unknown): SpawnPtyOptions {
   if (!payload || typeof payload !== 'object') {
@@ -28,6 +29,10 @@ export function normalizeSpawnTerminalPayload(payload: unknown): SpawnPtyOptions
 
   if (cwd.length === 0) {
     throw new Error('Invalid cwd for pty:spawn')
+  }
+
+  if (!isAbsolute(cwd)) {
+    throw new Error('pty:spawn requires an absolute cwd')
   }
 
   return {

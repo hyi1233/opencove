@@ -4,6 +4,7 @@ import type {
   ListAgentModelsInput,
 } from '../../../../shared/types/api'
 import { normalizeProvider } from '../../../ipc/normalize'
+import { isAbsolute } from 'node:path'
 
 export function normalizeListModelsPayload(payload: unknown): ListAgentModelsInput {
   if (!payload || typeof payload !== 'object') {
@@ -77,6 +78,10 @@ export function normalizeLaunchAgentPayload(payload: unknown): LaunchAgentInput 
 
   if (cwd.length === 0) {
     throw new Error('Invalid cwd for agent:launch')
+  }
+
+  if (!isAbsolute(cwd)) {
+    throw new Error('agent:launch requires an absolute cwd')
   }
 
   if (mode === 'new' && prompt.length === 0) {

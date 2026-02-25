@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { dirname, isAbsolute, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import process from 'node:process'
 import { app } from 'electron'
 
@@ -26,7 +26,7 @@ function isPathWithinRoot(rootPath: string, targetPath: string): boolean {
     return false
   }
 
-  if (relativePath.startsWith(`..${process.platform === 'win32' ? '\\\\' : '/'}`)) {
+  if (relativePath.startsWith(`..${sep}`)) {
     return false
   }
 
@@ -115,14 +115,14 @@ export function createApprovedWorkspaceStore(): ApprovedWorkspaceStore {
         return
       }
 
-      await loadOnce()
-
       const normalized = normalizePathForComparison(trimmed)
       if (approvedRoots.has(normalized)) {
+        await loadOnce()
         return
       }
 
       approvedRoots.add(normalized)
+      await loadOnce()
       await persist()
     },
     isPathApproved: async targetPath => {

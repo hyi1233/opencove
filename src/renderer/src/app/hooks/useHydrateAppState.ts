@@ -167,23 +167,41 @@ export function useHydrateAppState({
                 },
               }
             } catch (error) {
-              const fallback = await window.coveApi.pty.spawn({
-                cwd: workspace.path,
-                cols: 80,
-                rows: 24,
-              })
+              const now = new Date().toISOString()
+              const resumeError = toErrorMessage(error)
 
-              return {
-                ...node,
-                data: {
-                  ...node.data,
-                  sessionId: fallback.sessionId,
-                  status: 'failed' as const,
-                  endedAt: new Date().toISOString(),
-                  exitCode: null,
-                  lastError: `Resume failed: ${toErrorMessage(error)}`,
-                  scrollback: node.data.scrollback,
-                },
+              try {
+                const fallback = await window.coveApi.pty.spawn({
+                  cwd: workspace.path,
+                  cols: 80,
+                  rows: 24,
+                })
+
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    sessionId: fallback.sessionId,
+                    status: 'failed' as const,
+                    endedAt: now,
+                    exitCode: null,
+                    lastError: `Resume failed: ${resumeError}`,
+                    scrollback: node.data.scrollback,
+                  },
+                }
+              } catch (fallbackError) {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    sessionId: '',
+                    status: 'failed' as const,
+                    endedAt: now,
+                    exitCode: null,
+                    lastError: `Resume failed: ${resumeError}. Fallback terminal failed: ${toErrorMessage(fallbackError)}`,
+                    scrollback: node.data.scrollback,
+                  },
+                }
               }
             }
           }

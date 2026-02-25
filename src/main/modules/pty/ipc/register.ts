@@ -12,6 +12,7 @@ import type {
 } from '../../../../shared/types/api'
 import type { IpcRegistrationDisposable } from '../../../ipc/types'
 import type { PtyRuntime } from './runtime'
+import type { ApprovedWorkspaceStore } from '../../workspace/ApprovedWorkspaceStore'
 import {
   normalizeAttachTerminalPayload,
   normalizeDetachTerminalPayload,
@@ -22,9 +23,18 @@ import {
   normalizeWriteTerminalPayload,
 } from './validate'
 
-export function registerPtyIpcHandlers(runtime: PtyRuntime): IpcRegistrationDisposable {
+export function registerPtyIpcHandlers(
+  runtime: PtyRuntime,
+  approvedWorkspaces: ApprovedWorkspaceStore,
+): IpcRegistrationDisposable {
   ipcMain.handle(IPC_CHANNELS.ptySpawn, async (_event, payload: SpawnTerminalInput) => {
     const normalized = normalizeSpawnTerminalPayload(payload)
+
+    const isApproved = await approvedWorkspaces.isPathApproved(normalized.cwd)
+    if (!isApproved) {
+      throw new Error('pty:spawn cwd is outside approved workspaces')
+    }
+
     return runtime.spawnSession(normalized)
   })
 

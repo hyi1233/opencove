@@ -11,13 +11,17 @@ import { buildDoneSignalPrompt } from '../../../infrastructure/agent/AgentDonePr
 import { listAgentModels } from '../../../infrastructure/agent/AgentModelService'
 import { locateAgentResumeSessionId } from '../../../infrastructure/agent/AgentSessionLocator'
 import type { PtyRuntime } from '../../pty/ipc/runtime'
+import type { ApprovedWorkspaceStore } from '../../workspace/ApprovedWorkspaceStore'
 import {
   normalizeLaunchAgentPayload,
   normalizeListModelsPayload,
   resolveAgentTestStub,
 } from './validate'
 
-export function registerAgentIpcHandlers(ptyRuntime: PtyRuntime): IpcRegistrationDisposable {
+export function registerAgentIpcHandlers(
+  ptyRuntime: PtyRuntime,
+  approvedWorkspaces: ApprovedWorkspaceStore,
+): IpcRegistrationDisposable {
   ipcMain.handle(IPC_CHANNELS.agentListModels, async (_event, payload: ListAgentModelsInput) => {
     const normalized = normalizeListModelsPayload(payload)
     return await listAgentModels(normalized.provider)
@@ -25,6 +29,11 @@ export function registerAgentIpcHandlers(ptyRuntime: PtyRuntime): IpcRegistratio
 
   ipcMain.handle(IPC_CHANNELS.agentLaunch, async (_event, payload: LaunchAgentInput) => {
     const normalized = normalizeLaunchAgentPayload(payload)
+
+    const isApproved = await approvedWorkspaces.isPathApproved(normalized.cwd)
+    if (!isApproved) {
+      throw new Error('agent:launch cwd is outside approved workspaces')
+    }
 
     const launchPrompt =
       (normalized.mode ?? 'new') === 'new'

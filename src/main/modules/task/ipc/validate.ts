@@ -1,5 +1,6 @@
 import type { SuggestTaskTitleInput } from '../../../../shared/types/api'
 import { normalizeProvider, normalizeStringArray } from '../../../ipc/normalize'
+import { isAbsolute } from 'node:path'
 
 export function normalizeSuggestTaskTitlePayload(payload: unknown): SuggestTaskTitleInput {
   if (!payload || typeof payload !== 'object') {
@@ -16,6 +17,10 @@ export function normalizeSuggestTaskTitlePayload(payload: unknown): SuggestTaskT
 
   if (cwd.length === 0) {
     throw new Error('Invalid cwd for task:suggest-title')
+  }
+
+  if (!isAbsolute(cwd)) {
+    throw new Error('task:suggest-title requires an absolute cwd')
   }
 
   if (requirement.length === 0) {

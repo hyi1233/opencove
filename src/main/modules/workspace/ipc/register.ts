@@ -4,16 +4,16 @@ import { dialog, ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../../../shared/constants/ipc'
 import type { EnsureDirectoryInput, WorkspaceDirectory } from '../../../../shared/types/api'
 import type { IpcRegistrationDisposable } from '../../../ipc/types'
-import { createApprovedWorkspaceStore } from '../ApprovedWorkspaceStore'
+import type { ApprovedWorkspaceStore } from '../ApprovedWorkspaceStore'
 import { normalizeEnsureDirectoryPayload } from './validate'
 
-export function registerWorkspaceIpcHandlers(): IpcRegistrationDisposable {
-  const approvedWorkspaces = createApprovedWorkspaceStore()
-
+export function registerWorkspaceIpcHandlers(
+  approvedWorkspaces: ApprovedWorkspaceStore,
+): IpcRegistrationDisposable {
   ipcMain.handle(
     IPC_CHANNELS.workspaceSelectDirectory,
     async (): Promise<WorkspaceDirectory | null> => {
-      if (process.env.COVE_TEST_WORKSPACE) {
+      if (process.env.NODE_ENV === 'test' && process.env.COVE_TEST_WORKSPACE) {
         const testWorkspacePath = resolve(process.env.COVE_TEST_WORKSPACE)
         await approvedWorkspaces.registerRoot(testWorkspacePath)
         return {

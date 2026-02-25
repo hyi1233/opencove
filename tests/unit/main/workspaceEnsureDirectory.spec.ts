@@ -64,18 +64,16 @@ describe('workspace ensureDirectory IPC', () => {
       }),
     }
 
-    vi.doMock('../../../src/main/modules/workspace/ApprovedWorkspaceStore', () => ({
-      createApprovedWorkspaceStore: () => store,
-    }))
-
     const previousTestWorkspace = process.env.COVE_TEST_WORKSPACE
+    const previousNodeEnv = process.env.NODE_ENV
+    process.env.NODE_ENV = 'test'
     process.env.COVE_TEST_WORKSPACE = '/tmp/cove-approved-workspace'
 
     try {
       const { registerWorkspaceIpcHandlers } =
         await import('../../../src/main/modules/workspace/ipc/register')
 
-      const disposable = registerWorkspaceIpcHandlers()
+      const disposable = registerWorkspaceIpcHandlers(store)
 
       const selectHandler = handlers.get(IPC_CHANNELS.workspaceSelectDirectory)
       expect(selectHandler).toBeTypeOf('function')
@@ -115,6 +113,12 @@ describe('workspace ensureDirectory IPC', () => {
         process.env.COVE_TEST_WORKSPACE = previousTestWorkspace
       } else {
         delete process.env.COVE_TEST_WORKSPACE
+      }
+
+      if (typeof previousNodeEnv === 'string') {
+        process.env.NODE_ENV = previousNodeEnv
+      } else {
+        delete process.env.NODE_ENV
       }
     }
   })
