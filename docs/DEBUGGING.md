@@ -16,10 +16,10 @@
 
 ### 1) E2E 一律先构建
 
-已将 `test:e2e` 固化为：
+已将 `test:e2e` 固化为脚本：
 
 ```bash
-pnpm build && playwright test
+node scripts/test-e2e-with-window-fallback.mjs
 ```
 
 因此直接执行：
@@ -27,6 +27,22 @@ pnpm build && playwright test
 ```bash
 pnpm test:e2e
 ```
+
+该脚本会先执行 `pnpm build` 再运行 Playwright。
+
+### 1.1) hidden 模式崩溃自动降级为 offscreen
+
+默认窗口模式为 `COVE_E2E_WINDOW_MODE=hidden`（避免界面干扰）。
+若首轮运行失败且日志命中 Electron/Chromium 崩溃特征（例如 `SIGSEGV`、`Target page, context or browser has been closed`），脚本会自动执行：
+
+```bash
+COVE_E2E_WINDOW_MODE=offscreen pnpm exec playwright test --last-failed
+```
+
+可选控制项：
+
+- 强制窗口模式：`COVE_E2E_WINDOW_MODE=normal|inactive|offscreen|hidden pnpm test:e2e`
+- 关闭自动降级：`COVE_E2E_DISABLE_CRASH_FALLBACK=1 pnpm test:e2e`
 
 ### 2) 目录选择使用测试注入路径
 

@@ -8,6 +8,8 @@ import { registerIpcHandlers } from './ipc/registerIpcHandlers'
 let ipcDisposable: ReturnType<typeof registerIpcHandlers> | null = null
 
 const EXTERNAL_PROTOCOL_ALLOWLIST = new Set(['http:', 'https:', 'mailto:'])
+const E2E_OFFSCREEN_COORDINATE = -50_000
+type E2EWindowMode = 'normal' | 'inactive' | 'hidden' | 'offscreen'
 
 function parseUrl(rawUrl: string): URL | null {
   try {
@@ -93,25 +95,91 @@ function isAllowedNavigationTarget(
   return false
 }
 
+function isTruthyEnv(rawValue: string | undefined): boolean {
+  if (!rawValue) {
+    return false
+  }
+
+  return rawValue === '1' || rawValue.toLowerCase() === 'true'
+}
+
+function parseE2EWindowMode(rawValue: string | undefined): E2EWindowMode | null {
+  if (!rawValue) {
+    return null
+  }
+
+  const normalized = rawValue.toLowerCase()
+  if (
+    normalized === 'normal' ||
+    normalized === 'inactive' ||
+    normalized === 'hidden' ||
+    normalized === 'offscreen'
+  ) {
+    return normalized
+  }
+
+  return null
+}
+
+function resolveE2EWindowMode(): E2EWindowMode {
+  if (process.env['NODE_ENV'] !== 'test') {
+    return 'normal'
+  }
+
+  const explicitMode = parseE2EWindowMode(process.env['COVE_E2E_WINDOW_MODE'])
+  if (explicitMode) {
+    return explicitMode
+  }
+
+  // Backward compatibility: keep honoring old no-focus flag.
+  if (isTruthyEnv(process.env['COVE_E2E_NO_FOCUS'])) {
+    return 'inactive'
+  }
+
+  return 'normal'
+}
+
 function createWindow(): void {
   const devOrigin = is.dev ? resolveDevRendererOrigin() : null
   const rendererRootDir = join(__dirname, '../renderer')
+  const e2eWindowMode = resolveE2EWindowMode()
+  const keepRendererActiveInBackground = e2eWindowMode !== 'normal'
+  const keepRendererActiveWhenHidden = e2eWindowMode === 'hidden'
+  const placeWindowOffscreen = e2eWindowMode === 'offscreen'
 
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     show: false,
+    ...(keepRendererActiveWhenHidden ? { paintWhenInitiallyHidden: true } : {}),
+    ...(placeWindowOffscreen ? { x: E2E_OFFSCREEN_COORDINATE, y: E2E_OFFSCREEN_COORDINATE } : {}),
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      ...(keepRendererActiveInBackground ? { backgroundThrottling: false } : {}),
     },
   })
 
   mainWindow.on('ready-to-show', () => {
+    if (e2eWindowMode === 'hidden') {
+      return
+    }
+
+    if (e2eWindowMode === 'offscreen') {
+      mainWindow.setPosition(E2E_OFFSCREEN_COORDINATE, E2E_OFFSCREEN_COORDINATE, false)
+      mainWindow.showInactive()
+      return
+    }
+
+    if (e2eWindowMode === 'inactive') {
+      mainWindow.showInactive()
+      return
+    }
+
     mainWindow.show()
   })
 

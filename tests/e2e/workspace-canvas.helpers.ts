@@ -5,6 +5,7 @@ const electronAppPath = path.resolve(__dirname, '../../')
 export const testWorkspacePath = path.resolve(__dirname, '../../')
 export const storageKey = 'cove:m0:workspace-state'
 export const seededWorkspaceId = 'workspace-seeded'
+type E2EWindowMode = 'normal' | 'inactive' | 'offscreen' | 'hidden'
 
 export interface SeedAgentData {
   provider: 'claude-code' | 'codex'
@@ -71,13 +72,16 @@ export interface SeedWorkspace {
   activeSpaceId?: string | null
 }
 
-export async function launchApp(): Promise<{ electronApp: ElectronApplication; window: Page }> {
+export async function launchApp(options?: {
+  windowMode?: E2EWindowMode
+}): Promise<{ electronApp: ElectronApplication; window: Page }> {
   const electronApp = await electron.launch({
     args: [electronAppPath],
     env: {
       ...process.env,
       NODE_ENV: 'test',
       COVE_TEST_WORKSPACE: testWorkspacePath,
+      ...(options?.windowMode ? { COVE_E2E_WINDOW_MODE: options.windowMode } : {}),
     },
   })
 

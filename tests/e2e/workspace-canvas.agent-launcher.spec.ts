@@ -3,7 +3,7 @@ import { clearAndSeedWorkspace, launchApp } from './workspace-canvas.helpers'
 
 test.describe('Workspace Canvas - Agent Launcher', () => {
   test('runs agent from launcher v2 and creates node', async () => {
-    const { electronApp, window } = await launchApp()
+    const { electronApp, window } = await launchApp({ windowMode: 'offscreen' })
 
     try {
       await clearAndSeedWorkspace(window, [], {
