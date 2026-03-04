@@ -70,6 +70,117 @@ test.describe('Workspace Canvas - Persistence', () => {
     }
   })
 
+  test('preserves large terminal history after workspace switch', async () => {
+    const { electronApp, window } = await launchApp()
+
+    try {
+      await seedWorkspaceState(window, {
+        activeWorkspaceId: 'workspace-a',
+        workspaces: [
+          {
+            id: 'workspace-a',
+            name: 'workspace-a',
+            path: testWorkspacePath,
+            nodes: [
+              {
+                id: 'node-a',
+                title: 'terminal-a',
+                position: { x: 120, y: 120 },
+                width: 460,
+                height: 300,
+              },
+            ],
+          },
+          {
+            id: 'workspace-b',
+            name: 'workspace-b',
+            path: testWorkspacePath,
+            nodes: [
+              {
+                id: 'node-b',
+                title: 'terminal-b',
+                position: { x: 160, y: 160 },
+                width: 460,
+                height: 300,
+              },
+            ],
+          },
+        ],
+      })
+
+      const terminal = window.locator('.terminal-node').first()
+      await expect(terminal).toBeVisible()
+      await expect(terminal.locator('.xterm')).toBeVisible()
+
+      const headToken = `COVE_SCROLLBACK_HEAD_${Date.now()}`
+      const tailToken = `COVE_SCROLLBACK_TAIL_${Date.now()}`
+
+      await terminal.locator('.xterm').click()
+      await expect(terminal.locator('.xterm-helper-textarea')).toBeFocused()
+
+      await window.keyboard.type(
+        [
+          `echo ${headToken}`,
+          `for i in $(seq 1 4500); do printf '%045d\\n' $i; done`,
+          `echo ${tailToken}`,
+        ].join('; '),
+      )
+      await window.keyboard.press('Enter')
+      await expect(terminal).toContainText(tailToken, { timeout: 20_000 })
+
+      await window.waitForTimeout(200)
+      const scrollbar = terminal.locator('.xterm-scrollable-element .scrollbar.vertical')
+      const slider = scrollbar.locator('.slider')
+      await expect(slider).toBeVisible()
+
+      const scrollbarBox = await scrollbar.boundingBox()
+      const sliderBox = await slider.boundingBox()
+      if (scrollbarBox && sliderBox) {
+        await window.mouse.move(
+          sliderBox.x + sliderBox.width / 2,
+          sliderBox.y + sliderBox.height / 2,
+        )
+        await window.mouse.down()
+        await window.mouse.move(scrollbarBox.x + scrollbarBox.width / 2, scrollbarBox.y + 1)
+        await window.mouse.up()
+      }
+      await expect(terminal).toContainText(headToken, { timeout: 20_000 })
+
+      await window.locator('.workspace-item').nth(1).click()
+      await expect(window.locator('.workspace-item').nth(1)).toHaveClass(/workspace-item--active/)
+      await expect(window.locator('.terminal-node')).toHaveCount(1)
+
+      await window.locator('.workspace-item').nth(0).click()
+      await expect(window.locator('.workspace-item').nth(0)).toHaveClass(/workspace-item--active/)
+      await expect(window.locator('.terminal-node')).toHaveCount(1)
+
+      const restoredTerminal = window.locator('.terminal-node').first()
+      await expect(restoredTerminal).toContainText(tailToken, { timeout: 20_000 })
+
+      const restoredScrollbar = restoredTerminal.locator('.xterm-scrollable-element .scrollbar.vertical')
+      const restoredSlider = restoredScrollbar.locator('.slider')
+      await expect(restoredSlider).toBeVisible()
+
+      const restoredScrollbarBox = await restoredScrollbar.boundingBox()
+      const restoredSliderBox = await restoredSlider.boundingBox()
+      if (restoredScrollbarBox && restoredSliderBox) {
+        await window.mouse.move(
+          restoredSliderBox.x + restoredSliderBox.width / 2,
+          restoredSliderBox.y + restoredSliderBox.height / 2,
+        )
+        await window.mouse.down()
+        await window.mouse.move(
+          restoredScrollbarBox.x + restoredScrollbarBox.width / 2,
+          restoredScrollbarBox.y + 1,
+        )
+        await window.mouse.up()
+      }
+      await expect(restoredTerminal).toContainText(headToken, { timeout: 20_000 })
+    } finally {
+      await electronApp.close()
+    }
+  })
+
   test('preserves terminal history if command exits while workspace inactive', async () => {
     const { electronApp, window } = await launchApp()
 
