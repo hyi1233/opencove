@@ -142,6 +142,7 @@ export interface LaunchAgentInput {
   mode?: AgentLaunchMode
   model?: string | null
   resumeSessionId?: string | null
+  agentFullAccess?: boolean
   cols?: number
   rows?: number
 }

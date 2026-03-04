@@ -120,6 +120,13 @@ export function SettingsPanel({
     })
   }
 
+  const updateAgentFullAccess = (enabled: boolean): void => {
+    onChange({
+      ...settings,
+      agentFullAccess: enabled,
+    })
+  }
+
   const updateTaskTitleProvider = (provider: TaskTitleProvider): void => {
     onChange({
       ...settings,
@@ -361,8 +368,12 @@ export function SettingsPanel({
           <div className="settings-panel__content">
             <GeneralSection
               defaultProvider={settings.defaultProvider}
+              agentFullAccess={settings.agentFullAccess}
               onChangeDefaultProvider={provider => {
                 updateDefaultProvider(provider)
+              }}
+              onChangeAgentFullAccess={enabled => {
+                updateAgentFullAccess(enabled)
               }}
             />
 

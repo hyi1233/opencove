@@ -177,6 +177,7 @@ function WorkspaceCanvasInner({
     setNodes,
     bumpAgentLaunchToken,
     isAgentLaunchTokenCurrent,
+    agentFullAccess: agentSettings.agentFullAccess,
   })
 
   const {

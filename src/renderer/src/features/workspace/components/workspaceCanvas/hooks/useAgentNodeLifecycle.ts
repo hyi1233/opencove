@@ -11,6 +11,7 @@ interface UseAgentNodeLifecycleParams {
   ) => void
   bumpAgentLaunchToken: (nodeId: string) => number
   isAgentLaunchTokenCurrent: (nodeId: string, token: number) => boolean
+  agentFullAccess: boolean
 }
 
 export function useWorkspaceCanvasAgentNodeLifecycle({
@@ -18,6 +19,7 @@ export function useWorkspaceCanvasAgentNodeLifecycle({
   setNodes,
   bumpAgentLaunchToken,
   isAgentLaunchTokenCurrent,
+  agentFullAccess,
 }: UseAgentNodeLifecycleParams): {
   buildAgentNodeTitle: (
     provider: AgentNodeData['provider'],
@@ -111,6 +113,7 @@ export function useWorkspaceCanvasAgentNodeLifecycle({
           mode,
           model: launchData.model,
           resumeSessionId: mode === 'resume' ? launchData.resumeSessionId : null,
+          agentFullAccess,
           cols: 80,
           rows: 24,
         })

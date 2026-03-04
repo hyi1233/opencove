@@ -3,9 +3,12 @@ import { AGENT_PROVIDERS, AGENT_PROVIDER_LABEL, type AgentProvider } from '../..
 
 export function GeneralSection(props: {
   defaultProvider: AgentProvider
+  agentFullAccess: boolean
   onChangeDefaultProvider: (provider: AgentProvider) => void
+  onChangeAgentFullAccess: (enabled: boolean) => void
 }): React.JSX.Element {
-  const { defaultProvider, onChangeDefaultProvider } = props
+  const { defaultProvider, agentFullAccess, onChangeDefaultProvider, onChangeAgentFullAccess } =
+    props
 
   return (
     <div className="settings-panel__section" id="settings-section-general">
@@ -23,6 +26,18 @@ export function GeneralSection(props: {
           </option>
         ))}
       </select>
+
+      <label className="settings-provider-card__toggle">
+        <input
+          type="checkbox"
+          data-testid="settings-agent-full-access"
+          checked={agentFullAccess}
+          onChange={event => {
+            onChangeAgentFullAccess(event.target.checked)
+          }}
+        />
+        <span>Agent full access (dangerous; disables sandbox + approvals)</span>
+      </label>
     </div>
   )
 }

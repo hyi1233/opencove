@@ -37,6 +37,7 @@ export type AgentCustomModelOptionsByProvider = {
 
 export interface AgentSettings {
   defaultProvider: AgentProvider
+  agentFullAccess: boolean
   customModelEnabledByProvider: AgentCustomModelEnabledByProvider
   customModelByProvider: AgentCustomModelByProvider
   customModelOptionsByProvider: AgentCustomModelOptionsByProvider
@@ -52,6 +53,7 @@ export interface AgentSettings {
 
 export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
   defaultProvider: 'codex',
+  agentFullAccess: true,
   customModelEnabledByProvider: {
     'claude-code': false,
     codex: false,
@@ -195,6 +197,9 @@ export function normalizeAgentSettings(value: unknown): AgentSettings {
     ? value.defaultProvider
     : DEFAULT_AGENT_SETTINGS.defaultProvider
 
+  const agentFullAccess =
+    normalizeBoolean(value.agentFullAccess) ?? DEFAULT_AGENT_SETTINGS.agentFullAccess
+
   const enabledInput = isRecord(value.customModelEnabledByProvider)
     ? value.customModelEnabledByProvider
     : {}
@@ -289,6 +294,7 @@ export function normalizeAgentSettings(value: unknown): AgentSettings {
 
   return {
     defaultProvider,
+    agentFullAccess,
     customModelEnabledByProvider,
     customModelByProvider,
     customModelOptionsByProvider,

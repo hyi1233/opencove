@@ -253,6 +253,7 @@ export async function runTaskAgentAction(
       prompt: requirement,
       mode: 'new',
       model,
+      agentFullAccess: agentSettings.agentFullAccess,
       cols: 80,
       rows: 24,
     })
@@ -415,6 +416,7 @@ export async function resumeTaskAgentSessionAction(
       mode: 'resume',
       model: record.model,
       resumeSessionId: record.resumeSessionId,
+      agentFullAccess: agentSettings.agentFullAccess,
       cols: 80,
       rows: 24,
     })

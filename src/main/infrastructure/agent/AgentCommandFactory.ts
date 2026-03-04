@@ -6,6 +6,7 @@ interface BuildAgentLaunchCommandInput {
   prompt?: string
   model: string | null
   resumeSessionId: string | null
+  agentFullAccess?: boolean
 }
 
 export interface AgentLaunchCommand {
@@ -35,12 +36,23 @@ function normalizePrompt(value: string | undefined): string {
   return normalized
 }
 
+function maybeTerminateOptionParsing(args: string[], value: string): void {
+  if (value.startsWith('-')) {
+    args.push('--')
+  }
+}
+
 export function buildAgentLaunchCommand(input: BuildAgentLaunchCommandInput): AgentLaunchCommand {
   const effectiveModel = normalizeOptionalValue(input.model)
   const resumeSessionId = normalizeOptionalValue(input.resumeSessionId)
+  const agentFullAccess = input.agentFullAccess ?? true
 
   if (input.provider === 'claude-code') {
-    const args = ['--dangerously-skip-permissions']
+    const args: string[] = []
+
+    if (agentFullAccess) {
+      args.push('--dangerously-skip-permissions')
+    }
 
     if (effectiveModel) {
       args.push('--model', effectiveModel)
@@ -62,7 +74,9 @@ export function buildAgentLaunchCommand(input: BuildAgentLaunchCommandInput): Ag
       }
     }
 
-    args.push(normalizePrompt(input.prompt))
+    const prompt = normalizePrompt(input.prompt)
+    maybeTerminateOptionParsing(args, prompt)
+    args.push(prompt)
 
     return {
       command: 'claude',
@@ -74,7 +88,10 @@ export function buildAgentLaunchCommand(input: BuildAgentLaunchCommandInput): Ag
   }
 
   if (input.mode === 'resume') {
-    const args = ['resume']
+    const args = [
+      agentFullAccess ? '--dangerously-bypass-approvals-and-sandbox' : '--full-auto',
+      'resume',
+    ]
 
     if (resumeSessionId) {
       args.push(resumeSessionId)
@@ -95,13 +112,15 @@ export function buildAgentLaunchCommand(input: BuildAgentLaunchCommandInput): Ag
     }
   }
 
-  const args = ['--full-auto']
+  const args = [agentFullAccess ? '--dangerously-bypass-approvals-and-sandbox' : '--full-auto']
 
   if (effectiveModel) {
     args.push('--model', effectiveModel)
   }
 
-  args.push(normalizePrompt(input.prompt))
+  const prompt = normalizePrompt(input.prompt)
+  maybeTerminateOptionParsing(args, prompt)
+  args.push(prompt)
 
   return {
     command: 'codex',

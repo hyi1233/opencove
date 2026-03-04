@@ -67,6 +67,9 @@ export function normalizeLaunchAgentPayload(payload: unknown): LaunchAgentInput 
   const resumeSessionId =
     typeof record.resumeSessionId === 'string' ? record.resumeSessionId.trim() : ''
 
+  const agentFullAccess =
+    typeof record.agentFullAccess === 'boolean' ? record.agentFullAccess : true
+
   const cols =
     typeof record.cols === 'number' && Number.isFinite(record.cols) && record.cols > 0
       ? Math.floor(record.cols)
@@ -95,6 +98,7 @@ export function normalizeLaunchAgentPayload(payload: unknown): LaunchAgentInput 
     mode,
     model: model.length > 0 ? model : null,
     resumeSessionId: resumeSessionId.length > 0 ? resumeSessionId : null,
+    agentFullAccess,
     cols,
     rows,
   }

@@ -167,6 +167,7 @@ export function useWorkspaceCanvasAgentLauncher({
         prompt: normalizedPrompt,
         mode: 'new',
         model: normalizedModel.length > 0 ? normalizedModel : null,
+        agentFullAccess: agentSettings.agentFullAccess,
         cols: 80,
         rows: 24,
       })

@@ -105,6 +105,7 @@ export function useHydrateAppState({
                   mode: 'resume',
                   model: node.data.agent.model,
                   resumeSessionId: node.data.agent.resumeSessionId,
+                  agentFullAccess: useAppStore.getState().agentSettings.agentFullAccess,
                   cols: 80,
                   rows: 24,
                 })

@@ -40,6 +40,7 @@ export function registerAgentIpcHandlers(
       prompt: normalized.prompt,
       model: normalized.model ?? null,
       resumeSessionId: normalized.resumeSessionId ?? null,
+      agentFullAccess: normalized.agentFullAccess ?? true,
     })
 
     const testStub = resolveAgentTestStub(
