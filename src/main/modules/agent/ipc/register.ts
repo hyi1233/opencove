@@ -7,7 +7,10 @@ import type {
 } from '../../../../shared/types/api'
 import type { IpcRegistrationDisposable } from '../../../ipc/types'
 import { buildAgentLaunchCommand } from '../../../infrastructure/agent/AgentCommandFactory'
-import { listAgentModels } from '../../../infrastructure/agent/AgentModelService'
+import {
+  disposeAgentModelService,
+  listAgentModels,
+} from '../../../infrastructure/agent/AgentModelService'
 import type { PtyRuntime } from '../../pty/ipc/runtime'
 import type { ApprovedWorkspaceStore } from '../../workspace/ApprovedWorkspaceStore'
 import {
@@ -87,6 +90,7 @@ export function registerAgentIpcHandlers(
     dispose: () => {
       ipcMain.removeHandler(IPC_CHANNELS.agentListModels)
       ipcMain.removeHandler(IPC_CHANNELS.agentLaunch)
+      disposeAgentModelService()
     },
   }
 }

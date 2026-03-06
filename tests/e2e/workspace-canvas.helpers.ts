@@ -13,6 +13,9 @@ export const testWorkspacePath = path.resolve(__dirname, '../../')
 export const storageKey = 'cove:m0:workspace-state'
 export const seededWorkspaceId = 'workspace-seeded'
 type E2EWindowMode = 'normal' | 'inactive' | 'offscreen' | 'hidden'
+const E2E_APP_CLOSE_TIMEOUT_MS = 5_000
+const E2E_APP_FORCE_KILL_TIMEOUT_MS = 2_000
+const E2E_APP_FORCE_KILL_POLL_MS = 50
 
 function isTruthyEnv(rawValue: string | undefined): boolean {
   if (!rawValue) {
@@ -59,6 +62,60 @@ async function delay(ms: number): Promise<void> {
 
 async function createTestUserDataDir(): Promise<string> {
   return await mkdtemp(path.join(tmpdir(), 'cove-e2e-user-data-'))
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException | undefined)?.code !== 'ESRCH'
+  }
+}
+
+async function waitForProcessExit(pid: number, timeoutMs: number): Promise<void> {
+  if (!isProcessAlive(pid) || timeoutMs <= 0) {
+    return
+  }
+
+  const nextDelayMs = Math.min(E2E_APP_FORCE_KILL_POLL_MS, timeoutMs)
+  await delay(nextDelayMs)
+  await waitForProcessExit(pid, timeoutMs - nextDelayMs)
+}
+
+async function closeElectronAppAndCleanup(
+  electronApp: ElectronApplication,
+  originalClose: () => Promise<void>,
+  userDataDir: string,
+): Promise<void> {
+  const appProcess = electronApp.process()
+  const appPid = typeof appProcess.pid === 'number' && appProcess.pid > 0 ? appProcess.pid : null
+
+  try {
+    await Promise.race([
+      (async () => {
+        const closeEventPromise = electronApp
+          .waitForEvent('close', { timeout: E2E_APP_CLOSE_TIMEOUT_MS })
+          .catch(() => undefined)
+
+        await originalClose().catch(() => undefined)
+        await closeEventPromise
+      })(),
+      delay(E2E_APP_CLOSE_TIMEOUT_MS),
+    ])
+  } finally {
+    if (appPid !== null && isProcessAlive(appPid)) {
+      try {
+        process.kill(appPid, 'SIGKILL')
+      } catch {
+        // ignore force-kill failures
+      }
+
+      await waitForProcessExit(appPid, E2E_APP_FORCE_KILL_TIMEOUT_MS).catch(() => undefined)
+    }
+
+    await rm(userDataDir, { recursive: true, force: true })
+  }
 }
 
 export interface SeedAgentData {
@@ -146,12 +203,10 @@ async function launchAppInMode(
     })
 
     const originalClose = electronApp.close.bind(electronApp)
+    let closePromise: Promise<void> | null = null
     ;(electronApp as unknown as { close: () => Promise<void> }).close = async () => {
-      try {
-        await originalClose()
-      } finally {
-        await rm(userDataDir, { recursive: true, force: true })
-      }
+      closePromise ??= closeElectronAppAndCleanup(electronApp, originalClose, userDataDir)
+      return await closePromise
     }
 
     const window = await electronApp.firstWindow()
@@ -161,8 +216,9 @@ async function launchAppInMode(
   } catch (error) {
     if (electronApp) {
       await electronApp.close().catch(() => undefined)
+    } else {
+      await rm(userDataDir, { recursive: true, force: true })
     }
-    await rm(userDataDir, { recursive: true, force: true })
 
     const shouldRetryCurrentMode = isRetryableLaunchError(error) && attempt < 1
     if (shouldRetryCurrentMode) {

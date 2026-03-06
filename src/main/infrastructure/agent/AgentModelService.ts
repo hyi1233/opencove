@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import type {
   AgentModelOption,
   AgentProviderId,
@@ -6,6 +6,18 @@ import type {
 } from '../../../shared/types/api'
 
 const CODEX_APP_SERVER_TIMEOUT_MS = 8000
+const CODEX_APP_SERVER_SHUTDOWN_GRACE_MS = 500
+const CODEX_MODEL_CACHE_TTL_MS = 30_000
+const CODEX_MODEL_ERROR_CACHE_TTL_MS = 5_000
+
+const activeCodexModelChildren = new Set<ChildProcessWithoutNullStreams>()
+
+let cachedCodexModels: {
+  result: ListAgentModelsResult
+  expiresAtMs: number
+} | null = null
+
+let codexModelsRequestInFlight: Promise<ListAgentModelsResult> | null = null
 
 const CLAUDE_CODE_STATIC_MODELS: AgentModelOption[] = [
   {
@@ -78,81 +90,109 @@ function extractRpcErrorMessage(payload: Record<string, unknown>): string {
   return 'Unknown RPC error'
 }
 
+function cloneAgentModelOption(model: AgentModelOption): AgentModelOption {
+  return {
+    id: model.id,
+    displayName: model.displayName,
+    description: model.description,
+    isDefault: model.isDefault,
+  }
+}
+
+function cloneListAgentModelsResult(result: ListAgentModelsResult): ListAgentModelsResult {
+  return {
+    provider: result.provider,
+    source: result.source,
+    fetchedAt: result.fetchedAt,
+    error: result.error,
+    models: result.models.map(cloneAgentModelOption),
+  }
+}
+
+function isChildProcessExited(child: ChildProcessWithoutNullStreams): boolean {
+  return child.exitCode !== null || child.signalCode !== null
+}
+
+function trackCodexModelChild(child: ChildProcessWithoutNullStreams): void {
+  activeCodexModelChildren.add(child)
+
+  const untrack = (): void => {
+    activeCodexModelChildren.delete(child)
+  }
+
+  child.once('exit', untrack)
+  child.once('close', untrack)
+}
+
+function terminateCodexModelChild(child: ChildProcessWithoutNullStreams): void {
+  try {
+    child.stdin.end()
+  } catch {
+    // ignore stdin teardown failures
+  }
+
+  if (isChildProcessExited(child)) {
+    return
+  }
+
+  try {
+    child.kill('SIGTERM')
+  } catch {
+    return
+  }
+
+  const forceKillTimer = setTimeout(() => {
+    if (isChildProcessExited(child)) {
+      return
+    }
+
+    try {
+      child.kill('SIGKILL')
+    } catch {
+      // ignore force-kill failures
+    }
+  }, CODEX_APP_SERVER_SHUTDOWN_GRACE_MS)
+
+  forceKillTimer.unref()
+}
+
+function rememberCodexModels(result: ListAgentModelsResult): ListAgentModelsResult {
+  cachedCodexModels = {
+    result: cloneListAgentModelsResult(result),
+    expiresAtMs:
+      Date.now() +
+      (result.error === null ? CODEX_MODEL_CACHE_TTL_MS : CODEX_MODEL_ERROR_CACHE_TTL_MS),
+  }
+
+  return cloneListAgentModelsResult(result)
+}
+
+function readCachedCodexModels(): ListAgentModelsResult | null {
+  if (!cachedCodexModels) {
+    return null
+  }
+
+  if (Date.now() > cachedCodexModels.expiresAtMs) {
+    cachedCodexModels = null
+    return null
+  }
+
+  return cloneListAgentModelsResult(cachedCodexModels.result)
+}
+
 async function listCodexModelsFromCli(): Promise<AgentModelOption[]> {
   return await new Promise<AgentModelOption[]>((resolve, reject) => {
     const child = spawn('codex', ['app-server'], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: process.env,
     })
+    trackCodexModelChild(child)
 
     let stdoutBuffer = ''
     let stderrBuffer = ''
     let isSettled = false
 
-    const timeout = setTimeout(() => {
-      settleReject(new Error('Timed out while requesting models from codex app-server'))
-    }, CODEX_APP_SERVER_TIMEOUT_MS)
-
-    const killChild = (): void => {
-      if (child.killed) {
-        return
-      }
-
-      child.kill('SIGTERM')
-      setTimeout(() => {
-        if (!child.killed) {
-          child.kill('SIGKILL')
-        }
-      }, 500).unref()
-    }
-
-    const cleanup = (): void => {
-      clearTimeout(timeout)
-      child.stdout.removeAllListeners()
-      child.stderr.removeAllListeners()
-      child.removeAllListeners()
-      killChild()
-    }
-
-    const settleResolve = (models: AgentModelOption[]): void => {
-      if (isSettled) {
-        return
-      }
-
-      isSettled = true
-      cleanup()
-      resolve(models)
-    }
-
-    const settleReject = (error: unknown): void => {
-      if (isSettled) {
-        return
-      }
-
-      isSettled = true
-      cleanup()
-      reject(error)
-    }
-
-    child.on('error', error => {
-      settleReject(error)
-    })
-
-    child.on('exit', (code, signal) => {
-      if (isSettled) {
-        return
-      }
-
-      const detail = stderrBuffer.trim()
-      const base = `codex app-server exited before model/list response (code=${code ?? 'null'}, signal=${signal ?? 'null'})`
-      settleReject(new Error(detail.length > 0 ? `${base}: ${detail}` : base))
-    })
-
-    child.stderr.on('data', chunk => {
-      stderrBuffer += chunk.toString()
-    })
-
-    child.stdout.on('data', chunk => {
+    const handleStdout = (chunk: Buffer | string): void => {
       stdoutBuffer += chunk.toString()
       const lines = stdoutBuffer.split('\n')
       stdoutBuffer = lines.pop() ?? ''
@@ -191,7 +231,63 @@ async function listCodexModelsFromCli(): Promise<AgentModelOption[]> {
         settleResolve(models)
         return
       }
-    })
+    }
+
+    const handleStderr = (chunk: Buffer | string): void => {
+      stderrBuffer += chunk.toString()
+    }
+
+    const handleError = (error: Error): void => {
+      settleReject(error)
+    }
+
+    const handleExit = (code: number | null, signal: NodeJS.Signals | null): void => {
+      if (isSettled) {
+        return
+      }
+
+      const detail = stderrBuffer.trim()
+      const base = `codex app-server exited before model/list response (code=${code ?? 'null'}, signal=${signal ?? 'null'})`
+      settleReject(new Error(detail.length > 0 ? `${base}: ${detail}` : base))
+    }
+
+    const timeout = setTimeout(() => {
+      settleReject(new Error('Timed out while requesting models from codex app-server'))
+    }, CODEX_APP_SERVER_TIMEOUT_MS)
+
+    const cleanup = (): void => {
+      clearTimeout(timeout)
+      child.stdout.off('data', handleStdout)
+      child.stderr.off('data', handleStderr)
+      child.off('error', handleError)
+      child.off('exit', handleExit)
+      terminateCodexModelChild(child)
+    }
+
+    const settleResolve = (models: AgentModelOption[]): void => {
+      if (isSettled) {
+        return
+      }
+
+      isSettled = true
+      cleanup()
+      resolve(models)
+    }
+
+    const settleReject = (error: unknown): void => {
+      if (isSettled) {
+        return
+      }
+
+      isSettled = true
+      cleanup()
+      reject(error)
+    }
+
+    child.on('error', handleError)
+    child.on('exit', handleExit)
+    child.stderr.on('data', handleStderr)
+    child.stdout.on('data', handleStdout)
 
     const initializeMessage = {
       id: '1',
@@ -223,29 +319,53 @@ function listClaudeCodeStaticModels(): AgentModelOption[] {
   return CLAUDE_CODE_STATIC_MODELS.map(model => ({ ...model }))
 }
 
-export async function listAgentModels(provider: AgentProviderId): Promise<ListAgentModelsResult> {
-  const fetchedAt = new Date().toISOString()
+export function disposeAgentModelService(): void {
+  codexModelsRequestInFlight = null
+  cachedCodexModels = null
 
-  if (provider === 'codex') {
-    try {
-      const models = await listCodexModelsFromCli()
-      return {
-        provider,
-        source: 'codex-cli',
-        fetchedAt,
-        models,
-        error: null,
-      }
-    } catch (error) {
-      return {
-        provider,
-        source: 'codex-cli',
-        fetchedAt,
-        models: [],
-        error: toErrorMessage(error),
-      }
-    }
+  for (const child of activeCodexModelChildren) {
+    terminateCodexModelChild(child)
   }
+}
+
+export async function listAgentModels(provider: AgentProviderId): Promise<ListAgentModelsResult> {
+  if (provider === 'codex') {
+    const cachedResult = readCachedCodexModels()
+    if (cachedResult) {
+      return cachedResult
+    }
+
+    if (!codexModelsRequestInFlight) {
+      codexModelsRequestInFlight = (async () => {
+        const fetchedAt = new Date().toISOString()
+
+        try {
+          const models = await listCodexModelsFromCli()
+          return rememberCodexModels({
+            provider,
+            source: 'codex-cli',
+            fetchedAt,
+            models,
+            error: null,
+          })
+        } catch (error) {
+          return rememberCodexModels({
+            provider,
+            source: 'codex-cli',
+            fetchedAt,
+            models: [],
+            error: toErrorMessage(error),
+          })
+        } finally {
+          codexModelsRequestInFlight = null
+        }
+      })()
+    }
+
+    return cloneListAgentModelsResult(await codexModelsRequestInFlight)
+  }
+
+  const fetchedAt = new Date().toISOString()
 
   return {
     provider,

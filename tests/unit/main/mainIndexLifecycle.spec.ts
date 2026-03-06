@@ -23,7 +23,7 @@ function createMockApp() {
 }
 
 describe('main process lifecycle', () => {
-  it('keeps IPC handlers alive on macOS window-all-closed', async () => {
+  it('quits on window-all-closed during tests', async () => {
     vi.resetModules()
 
     const app = createMockApp()
@@ -80,12 +80,12 @@ describe('main process lifecycle', () => {
 
     app.emit('window-all-closed')
 
-    if (process.platform === 'darwin') {
-      expect(dispose).not.toHaveBeenCalled()
-      expect(app.quit).not.toHaveBeenCalled()
-    } else {
+    if (process.env['NODE_ENV'] === 'test' || process.platform !== 'darwin') {
       expect(dispose).toHaveBeenCalledTimes(1)
       expect(app.quit).toHaveBeenCalledTimes(1)
+    } else {
+      expect(dispose).not.toHaveBeenCalled()
+      expect(app.quit).not.toHaveBeenCalled()
     }
 
     app.emit('before-quit')

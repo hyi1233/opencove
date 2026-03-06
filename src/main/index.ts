@@ -258,9 +258,10 @@ app.whenReady().then(() => {
   })
 })
 
-// Quit when all windows are closed, except on macOS.
+// Quit when all windows are closed.
+// Tests must fully exit on macOS as well, otherwise Playwright can leave Electron running.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  if (process.env.NODE_ENV === 'test' || process.platform !== 'darwin') {
     ipcDisposable?.dispose()
     ipcDisposable = null
 
