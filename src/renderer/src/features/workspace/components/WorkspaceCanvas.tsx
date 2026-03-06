@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ReactFlowProvider, useReactFlow, type Edge, type Node, type Viewport } from '@xyflow/react'
 import {
   AGENT_PROVIDER_LABEL,
@@ -65,6 +65,7 @@ function WorkspaceCanvasInner({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [isMinimapVisible, setIsMinimapVisible] = useState(persistedMinimapVisible)
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
+  const [selectedSpaceIds, setSelectedSpaceIds] = useState<string[]>([])
   const [, setEmptySelectionPrompt] = useState<EmptySelectionPromptState | null>(null)
   const [detectedCanvasInputMode, setDetectedCanvasInputMode] =
     useState<DetectedCanvasInputMode>('mouse')
@@ -74,6 +75,7 @@ function WorkspaceCanvasInner({
   const restoredViewportWorkspaceIdRef = useRef<string | null>(null)
   const spacesRef = useRef(spaces)
   const selectedNodeIdsRef = useRef<string[]>([])
+  const selectedSpaceIdsRef = useRef<string[]>([])
   const selectionDraftRef = useRef<SelectionDraftState | null>(null)
   const actionRefs = useWorkspaceCanvasActionRefs()
   const inputModalityStateRef = useRef(createCanvasInputModalityState('mouse'))
@@ -148,6 +150,7 @@ function WorkspaceCanvasInner({
     reactFlow,
     nodesRef,
     spacesRef,
+    selectedNodeIdsRef,
     setNodes,
     onSpacesChange,
     onRequestPersistFlush,
@@ -155,7 +158,6 @@ function WorkspaceCanvasInner({
     cancelSpaceRename,
     setEmptySelectionPrompt,
   })
-
   const {
     handleNodeDragStart,
     handleSelectionDragStart,
@@ -169,14 +171,12 @@ function WorkspaceCanvasInner({
     onSpacesChange,
     onRequestPersistFlush,
   })
-
   const { buildAgentNodeTitle, launchAgentInNode } = useWorkspaceCanvasAgentNodeLifecycle({
     nodesRef,
     setNodes,
     bumpAgentLaunchToken,
     isAgentLaunchTokenCurrent,
   })
-
   const {
     agentLauncher,
     setAgentLauncher,
@@ -269,12 +269,9 @@ function WorkspaceCanvasInner({
     if (agentSettings.canvasInputMode === 'auto') {
       return detectedCanvasInputMode
     }
-
     return agentSettings.canvasInputMode
   }, [agentSettings.canvasInputMode, detectedCanvasInputMode])
-
   const isTrackpadCanvasMode = resolvedCanvasInputMode === 'trackpad'
-
   const { handleCanvasWheelCapture } = useWorkspaceCanvasTrackpadGestures({
     canvasInputModeSetting: agentSettings.canvasInputMode,
     resolvedCanvasInputMode,
@@ -286,12 +283,12 @@ function WorkspaceCanvasInner({
     reactFlow,
     onViewportChange,
   })
-
   useWorkspaceCanvasLifecycle({
     workspaceId,
     persistedMinimapVisible,
     setIsMinimapVisible,
     setSelectedNodeIds,
+    setSelectedSpaceIds,
     setContextMenu,
     setEmptySelectionPrompt,
     cancelSpaceRename,
@@ -310,7 +307,9 @@ function WorkspaceCanvasInner({
     focusSequence,
     nodesRef,
   })
-
+  useLayoutEffect(() => {
+    selectedSpaceIdsRef.current = selectedSpaceIds
+  }, [selectedSpaceIds])
   useWorkspaceCanvasSyncActionRefs({
     actionRefs,
     closeNode,
@@ -322,11 +321,12 @@ function WorkspaceCanvasInner({
     nodesRef,
     reactFlow,
   })
-
   useWorkspaceCanvasPtyTaskCompletion({ setNodes })
-
-  const selectNode = useWorkspaceCanvasSelectNode({ setNodes, setSelectedNodeIds })
-
+  const selectNode = useWorkspaceCanvasSelectNode({
+    setNodes,
+    setSelectedNodeIds,
+    setSelectedSpaceIds,
+  })
   const nodeTypes = useWorkspaceCanvasNodeTypes({
     nodesRef,
     spacesRef,
@@ -335,7 +335,6 @@ function WorkspaceCanvasInner({
     selectNode,
     ...actionRefs,
   })
-
   const {
     clearNodeSelection,
     handleSelectionContextMenu,
@@ -354,10 +353,12 @@ function WorkspaceCanvasInner({
     reactFlow,
     setNodes,
     setSelectedNodeIds,
+    setSelectedSpaceIds,
     setContextMenu,
     setEmptySelectionPrompt,
     cancelSpaceRename,
     selectedNodeIdsRef,
+    selectedSpaceIdsRef,
     contextMenu,
     workspacePath,
     spacesRef,
@@ -372,6 +373,10 @@ function WorkspaceCanvasInner({
     normalizePosition,
     applyPendingScrollbacks,
     isNodeDraggingRef,
+    selectionDraftRef,
+    spacesRef,
+    selectedSpaceIdsRef,
+    onSpacesChange,
   })
 
   const taskTitleProviderLabel = AGENT_PROVIDER_LABEL[resolveTaskTitleProvider(agentSettings)],
@@ -420,6 +425,7 @@ function WorkspaceCanvasInner({
       isShiftPressed={isShiftPressed}
       spaceVisuals={spaceVisuals}
       spaceFramePreview={spaceFramePreview}
+      selectedSpaceIds={selectedSpaceIds}
       handleSpaceDragHandlePointerDown={handleSpaceDragHandlePointerDown}
       editingSpaceId={editingSpaceId}
       spaceRenameInputRef={spaceRenameInputRef}
