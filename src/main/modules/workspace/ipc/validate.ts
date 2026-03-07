@@ -1,4 +1,4 @@
-import { isAbsolute } from 'node:path'
+import { isAbsolute, win32 } from 'node:path'
 import {
   WORKSPACE_PATH_OPENER_IDS,
   type CopyWorkspacePathInput,
@@ -14,7 +14,7 @@ function normalizePathValue(value: unknown, channel: string): string {
     throw new Error(`Invalid path for ${channel}`)
   }
 
-  if (!isAbsolute(path)) {
+  if (!isAbsolute(path) && !win32.isAbsolute(path)) {
     throw new Error(`${channel} requires an absolute path`)
   }
 

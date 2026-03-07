@@ -1,35 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { IPC_CHANNELS } from '../../../src/shared/constants/ipc'
+import {
+  createIpcMainMock,
+  createSpawnMock,
+  restorePlatform,
+} from './workspacePathOpeners.testUtils'
 
-function createIpcMainMock() {
-  const handlers = new Map<string, (...args: unknown[]) => unknown>()
-  const ipcMain = {
-    handle: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) => {
-      handlers.set(channel, handler)
-    }),
-    removeHandler: vi.fn((channel: string) => {
-      handlers.delete(channel)
-    }),
-  }
-
-  return { handlers, ipcMain }
-}
-
-describe('workspace path openers IPC', () => {
+describe('workspace path openers IPC on macOS', () => {
   const originalPlatform = process.platform
 
   afterEach(() => {
-    vi.restoreAllMocks()
-    vi.doUnmock('node:child_process')
-    vi.doUnmock('electron')
-    vi.resetModules()
-    Object.defineProperty(process, 'platform', {
-      value: originalPlatform,
-      configurable: true,
-    })
+    restorePlatform(originalPlatform)
   })
 
-  it('lists installed macOS openers and opens paths with resolved aliases', async () => {
+  it('lists installed openers and opens paths with resolved aliases', async () => {
     Object.defineProperty(process, 'platform', {
       value: 'darwin',
       configurable: true,
@@ -62,10 +46,11 @@ describe('workspace path openers IPC', () => {
       },
     )
 
+    const spawn = createSpawnMock()
     const { handlers, ipcMain } = createIpcMainMock()
     const shellOpenPath = vi.fn(async () => '')
 
-    vi.doMock('node:child_process', () => ({ execFile, default: { execFile } }))
+    vi.doMock('node:child_process', () => ({ execFile, spawn, default: { execFile, spawn } }))
     vi.doMock('electron', () => ({
       ipcMain,
       clipboard: { writeText: vi.fn() },
@@ -88,12 +73,12 @@ describe('workspace path openers IPC', () => {
     expect(listHandler).toBeTypeOf('function')
     expect(openHandler).toBeTypeOf('function')
 
-    await expect(listHandler?.()).resolves.toEqual({
+    expect(await listHandler?.()).toEqual({
       openers: [
+        { id: 'finder', label: 'Finder' },
         { id: 'vscode', label: 'VS Code' },
         { id: 'cursor', label: 'Cursor' },
         { id: 'pycharm', label: 'PyCharm' },
-        { id: 'finder', label: 'Finder' },
       ],
     })
 
@@ -104,6 +89,7 @@ describe('workspace path openers IPC', () => {
 
     expect(store.isPathApproved).toHaveBeenCalledWith(targetPath)
     expect(shellOpenPath).not.toHaveBeenCalled()
+    expect(spawn).not.toHaveBeenCalled()
     expect(
       execFile.mock.calls.some(
         ([file, args]) =>
@@ -114,37 +100,5 @@ describe('workspace path openers IPC', () => {
           args[2] === targetPath,
       ),
     ).toBe(true)
-  })
-
-  it('accepts the newly supported opener ids during validation', async () => {
-    const { normalizeOpenWorkspacePathPayload } =
-      await import('../../../src/main/modules/workspace/ipc/validate')
-
-    expect(
-      normalizeOpenWorkspacePathPayload({
-        path: '/tmp/cove-approved-workspace/project',
-        openerId: 'android-studio',
-      }),
-    ).toEqual({
-      path: '/tmp/cove-approved-workspace/project',
-      openerId: 'android-studio',
-    })
-
-    expect(
-      normalizeOpenWorkspacePathPayload({
-        path: '/tmp/cove-approved-workspace/project',
-        openerId: 'terminal',
-      }),
-    ).toEqual({
-      path: '/tmp/cove-approved-workspace/project',
-      openerId: 'terminal',
-    })
-
-    expect(() =>
-      normalizeOpenWorkspacePathPayload({
-        path: '/tmp/cove-approved-workspace/project',
-        openerId: 'unknown-app',
-      }),
-    ).toThrow(/Invalid openerId/)
   })
 })
