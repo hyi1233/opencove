@@ -42,3 +42,13 @@ export interface LaunchAgentResult {
   effectiveModel: string | null
   resumeSessionId: string | null
 }
+
+export interface ResolveAgentResumeSessionInput {
+  provider: AgentProviderId
+  cwd: string
+  startedAt: string
+}
+
+export interface ResolveAgentResumeSessionResult {
+  resumeSessionId: string | null
+}

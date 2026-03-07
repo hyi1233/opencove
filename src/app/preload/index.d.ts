@@ -14,6 +14,8 @@ import type {
   ListGitWorktreesResult,
   ListAgentModelsInput,
   ListAgentModelsResult,
+  ResolveAgentResumeSessionInput,
+  ResolveAgentResumeSessionResult,
   ListWorkspacePathOpenersResult,
   OpenWorkspacePathInput,
   PersistWriteResult,
@@ -86,6 +88,9 @@ export interface CoveApi {
   agent: {
     listModels: (payload: ListAgentModelsInput) => Promise<ListAgentModelsResult>
     launch: (payload: LaunchAgentInput) => Promise<LaunchAgentResult>
+    resolveResumeSessionId: (
+      payload: ResolveAgentResumeSessionInput,
+    ) => Promise<ResolveAgentResumeSessionResult>
   }
   task: {
     suggestTitle: (payload: SuggestTaskTitleInput) => Promise<SuggestTaskTitleResult>

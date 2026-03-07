@@ -16,6 +16,8 @@ import type {
   ListGitWorktreesResult,
   ListAgentModelsInput,
   ListAgentModelsResult,
+  ResolveAgentResumeSessionInput,
+  ResolveAgentResumeSessionResult,
   ListWorkspacePathOpenersResult,
   OpenWorkspacePathInput,
   PersistWriteResult,
@@ -158,6 +160,10 @@ const coveApi = {
       ipcRenderer.invoke(IPC_CHANNELS.agentListModels, payload),
     launch: (payload: LaunchAgentInput): Promise<LaunchAgentResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.agentLaunch, payload),
+    resolveResumeSessionId: (
+      payload: ResolveAgentResumeSessionInput,
+    ): Promise<ResolveAgentResumeSessionResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.agentResolveResumeSession, payload),
   },
   task: {
     suggestTitle: (payload: SuggestTaskTitleInput): Promise<SuggestTaskTitleResult> =>

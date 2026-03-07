@@ -65,11 +65,12 @@ describe('Pty runtime subscriptions', () => {
       },
     }))
 
-    vi.doMock('../../../src/main/infrastructure/pty/PtyManager', () => ({
+    vi.doMock('../../../src/contexts/terminal/infrastructure/pty/PtyManager', () => ({
       PtyManager: MockPtyManager,
     }))
 
-    const { createPtyRuntime } = await import('../../../src/main/modules/pty/ipc/runtime')
+    const { createPtyRuntime } =
+      await import('../../../src/contexts/terminal/presentation/main-ipc/runtime')
 
     const runtime = createPtyRuntime()
     runtime.spawnSession({ cwd: '/tmp', cols: 80, rows: 24 })
@@ -145,11 +146,12 @@ describe('Pty runtime subscriptions', () => {
       },
     }))
 
-    vi.doMock('../../../src/main/infrastructure/pty/PtyManager', () => ({
+    vi.doMock('../../../src/contexts/terminal/infrastructure/pty/PtyManager', () => ({
       PtyManager: MockPtyManager,
     }))
 
-    const { createPtyRuntime } = await import('../../../src/main/modules/pty/ipc/runtime')
+    const { createPtyRuntime } =
+      await import('../../../src/contexts/terminal/presentation/main-ipc/runtime')
 
     const runtime = createPtyRuntime()
     runtime.spawnSession({ cwd: '/tmp', cols: 80, rows: 24 })
@@ -222,11 +224,12 @@ describe('Pty runtime subscriptions', () => {
       },
     }))
 
-    vi.doMock('../../../src/main/infrastructure/pty/PtyManager', () => ({
+    vi.doMock('../../../src/contexts/terminal/infrastructure/pty/PtyManager', () => ({
       PtyManager: MockPtyManager,
     }))
 
-    const { createPtyRuntime } = await import('../../../src/main/modules/pty/ipc/runtime')
+    const { createPtyRuntime } =
+      await import('../../../src/contexts/terminal/presentation/main-ipc/runtime')
 
     const runtime = createPtyRuntime()
     runtime.spawnSession({ cwd: '/tmp', cols: 80, rows: 24 })
@@ -286,11 +289,12 @@ describe('Pty runtime subscriptions', () => {
       },
     }))
 
-    vi.doMock('../../../src/main/infrastructure/pty/PtyManager', () => ({
+    vi.doMock('../../../src/contexts/terminal/infrastructure/pty/PtyManager', () => ({
       PtyManager: MockPtyManager,
     }))
 
-    const { createPtyRuntime } = await import('../../../src/main/modules/pty/ipc/runtime')
+    const { createPtyRuntime } =
+      await import('../../../src/contexts/terminal/presentation/main-ipc/runtime')
 
     const runtime = createPtyRuntime()
     runtime.spawnSession({ cwd: '/tmp', cols: 80, rows: 24 })
