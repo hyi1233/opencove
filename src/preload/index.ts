@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC_CHANNELS } from '../shared/constants/ipc'
+import { IPC_CHANNELS } from '../shared/contracts/ipc'
 import type {
   AttachTerminalInput,
   CopyWorkspacePathInput,
@@ -41,7 +41,7 @@ import type {
   WriteNodeScrollbackInput,
   WriteWorkspaceStateRawInput,
   WriteTerminalInput,
-} from '../shared/types/api'
+} from '../shared/contracts/dto'
 
 type UnsubscribeFn = () => void
 

@@ -110,7 +110,7 @@
 -   **终端渲染基准**：`docs/TERMINAL_TUI_RENDERING_BASELINE.md`
 -   **调试指南**：`docs/DEBUGGING.md`
 -   **贡献代码指南**：`CONTRIBUTING.md`
--   **API Client 生成与使用**：暂无，参考 `src/shared/ipc` 定义。
+-   **API Client 生成与使用**：暂无，参考 `src/shared/contracts` 定义。
 
 ## 检索建议（避免一次性读完）
 

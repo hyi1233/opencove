@@ -39,7 +39,7 @@ import type {
   WriteNodeScrollbackInput,
   WriteWorkspaceStateRawInput,
   WriteTerminalInput,
-} from '../../shared/types/api'
+} from '../../shared/contracts/dto'
 
 type UnsubscribeFn = () => void
 
