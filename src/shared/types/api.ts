@@ -53,6 +53,58 @@ export interface EnsureDirectoryInput {
   path: string
 }
 
+export interface CopyWorkspacePathInput {
+  path: string
+}
+
+export const WORKSPACE_PATH_OPENER_IDS = [
+  'vscode',
+  'cursor',
+  'windsurf',
+  'zed',
+  'antigravity',
+  'vscode-insiders',
+  'vscodium',
+  'intellij-idea',
+  'fleet',
+  'android-studio',
+  'xcode',
+  'pycharm',
+  'webstorm',
+  'goland',
+  'clion',
+  'phpstorm',
+  'rubymine',
+  'datagrip',
+  'rider',
+  'sublime-text',
+  'nova',
+  'bbedit',
+  'textmate',
+  'coteditor',
+  'finder',
+  'terminal',
+  'iterm',
+  'warp',
+  'ghostty',
+] as const
+
+export type WorkspacePathOpenerId = (typeof WORKSPACE_PATH_OPENER_IDS)[number]
+
+export interface WorkspacePathOpener {
+  id: WorkspacePathOpenerId
+  label: string
+}
+
+export interface ListWorkspacePathOpenersResult {
+  openers: WorkspacePathOpener[]
+}
+
+export interface OpenWorkspacePathInput {
+  path: string
+  openerId: WorkspacePathOpenerId
+}
+
 export interface PseudoTerminalSession {
   sessionId: string
 }
@@ -209,7 +261,7 @@ export type CreateGitWorktreeBranchMode =
 
 export interface CreateGitWorktreeInput {
   repoPath: string
-  worktreePath: string
+  worktreesRoot: string
   branchMode: CreateGitWorktreeBranchMode
 }
 
@@ -221,6 +273,19 @@ export interface RemoveGitWorktreeInput {
   repoPath: string
   worktreePath: string
   force?: boolean
+  deleteBranch?: boolean
+}
+
+export interface RemoveGitWorktreeResult {
+  deletedBranchName: string | null
+  branchDeleteError: string | null
+}
+
+export interface RenameGitBranchInput {
+  repoPath: string
+  worktreePath: string
+  currentName: string
+  nextName: string
 }
 
 export interface SuggestWorktreeNamesInput {

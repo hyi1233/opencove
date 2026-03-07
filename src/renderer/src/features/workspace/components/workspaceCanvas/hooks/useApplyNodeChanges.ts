@@ -23,6 +23,7 @@ interface UseApplyNodeChangesParams {
   selectionDraftRef: MutableRefObject<SelectionDraftState | null>
   spacesRef: MutableRefObject<WorkspaceSpaceState[]>
   selectedSpaceIdsRef: MutableRefObject<string[]>
+  dragSelectedSpaceIdsRef?: MutableRefObject<string[] | null>
   onSpacesChange: (spaces: WorkspaceSpaceState[]) => void
   onRequestPersistFlush?: () => void
 }
@@ -37,6 +38,7 @@ export function useWorkspaceCanvasApplyNodeChanges({
   selectionDraftRef,
   spacesRef,
   selectedSpaceIdsRef,
+  dragSelectedSpaceIdsRef,
   onSpacesChange,
   onRequestPersistFlush,
 }: UseApplyNodeChangesParams): (changes: NodeChange<Node<TerminalNodeData>>[]) => void {
@@ -112,7 +114,8 @@ export function useWorkspaceCanvasApplyNodeChanges({
       }
 
       const anchorChange = positionChanges.find(change => change.position !== undefined) ?? null
-      const hasSelectedSpaces = selectedSpaceIdsRef.current.length > 0
+      const activeSelectedSpaceIds = dragSelectedSpaceIdsRef?.current ?? selectedSpaceIdsRef.current
+      const hasSelectedSpaces = activeSelectedSpaceIds.length > 0
       const shouldSyncSelectedSpaces = hasSelectedSpaces && anchorChange !== null
 
       if (shouldSyncSelectedSpaces) {
@@ -124,7 +127,7 @@ export function useWorkspaceCanvasApplyNodeChanges({
           const dy = nextAnchor.position.y - prevAnchor.position.y
 
           if (dx !== 0 || dy !== 0) {
-            const selectedSpaceIdSet = new Set(selectedSpaceIdsRef.current)
+            const selectedSpaceIdSet = new Set(activeSelectedSpaceIds)
             const previousSpaces = spacesRef.current
             const movedSpaceIds = new Set<string>()
             let hasSpaceMoved = false
@@ -287,6 +290,7 @@ export function useWorkspaceCanvasApplyNodeChanges({
       onNodesChange,
       onRequestPersistFlush,
       onSpacesChange,
+      dragSelectedSpaceIdsRef,
       selectedSpaceIdsRef,
       selectionDraftRef,
       spacesRef,

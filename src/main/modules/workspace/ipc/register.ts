@@ -1,11 +1,22 @@
 import { mkdir } from 'node:fs/promises'
 import { basename, resolve } from 'node:path'
-import { dialog, ipcMain } from 'electron'
+import { clipboard, dialog, ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../../../shared/constants/ipc'
-import type { EnsureDirectoryInput, WorkspaceDirectory } from '../../../../shared/types/api'
+import type {
+  CopyWorkspacePathInput,
+  EnsureDirectoryInput,
+  ListWorkspacePathOpenersResult,
+  OpenWorkspacePathInput,
+  WorkspaceDirectory,
+} from '../../../../shared/types/api'
 import type { IpcRegistrationDisposable } from '../../../ipc/types'
 import type { ApprovedWorkspaceStore } from '../ApprovedWorkspaceStore'
-import { normalizeEnsureDirectoryPayload } from './validate'
+import {
+  normalizeCopyWorkspacePathPayload,
+  normalizeEnsureDirectoryPayload,
+  normalizeOpenWorkspacePathPayload,
+} from './validate'
+import { listAvailableWorkspacePathOpeners, openWorkspacePath } from './workspacePathOpeners'
 
 export function registerWorkspaceIpcHandlers(
   approvedWorkspaces: ApprovedWorkspaceStore,
@@ -59,10 +70,48 @@ export function registerWorkspaceIpcHandlers(
     },
   )
 
+  ipcMain.handle(
+    IPC_CHANNELS.workspaceCopyPath,
+    async (_event, payload: CopyWorkspacePathInput) => {
+      const normalized = normalizeCopyWorkspacePathPayload(payload)
+
+      const isApproved = await approvedWorkspaces.isPathApproved(normalized.path)
+      if (!isApproved) {
+        throw new Error('workspace:copy-path path is outside approved workspaces')
+      }
+
+      clipboard.writeText(normalized.path)
+    },
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.workspaceListPathOpeners,
+    async (): Promise<ListWorkspacePathOpenersResult> => ({
+      openers: await listAvailableWorkspacePathOpeners(),
+    }),
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.workspaceOpenPath,
+    async (_event, payload: OpenWorkspacePathInput) => {
+      const normalized = normalizeOpenWorkspacePathPayload(payload)
+
+      const isApproved = await approvedWorkspaces.isPathApproved(normalized.path)
+      if (!isApproved) {
+        throw new Error('workspace:open-path path is outside approved workspaces')
+      }
+
+      await openWorkspacePath(normalized.path, normalized.openerId)
+    },
+  )
+
   return {
     dispose: () => {
       ipcMain.removeHandler(IPC_CHANNELS.workspaceSelectDirectory)
       ipcMain.removeHandler(IPC_CHANNELS.workspaceEnsureDirectory)
+      ipcMain.removeHandler(IPC_CHANNELS.workspaceCopyPath)
+      ipcMain.removeHandler(IPC_CHANNELS.workspaceListPathOpeners)
+      ipcMain.removeHandler(IPC_CHANNELS.workspaceOpenPath)
     },
   }
 }

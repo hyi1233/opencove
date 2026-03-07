@@ -1,5 +1,36 @@
-import type { EnsureDirectoryInput } from '../../../../shared/types/api'
-import { isAbsolute } from 'node:path'
+import { isAbsolute, win32 } from 'node:path'
+import {
+  WORKSPACE_PATH_OPENER_IDS,
+  type CopyWorkspacePathInput,
+  type EnsureDirectoryInput,
+  type OpenWorkspacePathInput,
+  type WorkspacePathOpenerId,
+} from '../../../../shared/types/api'
+
+function normalizePathValue(value: unknown, channel: string): string {
+  const path = typeof value === 'string' ? value.trim() : ''
+
+  if (path.length === 0) {
+    throw new Error(`Invalid path for ${channel}`)
+  }
+
+  if (!isAbsolute(path) && !win32.isAbsolute(path)) {
+    throw new Error(`${channel} requires an absolute path`)
+  }
+
+  return path
+}
+
+function normalizeWorkspacePathOpenerId(value: unknown): WorkspacePathOpenerId {
+  if (
+    typeof value === 'string' &&
+    WORKSPACE_PATH_OPENER_IDS.includes(value as WorkspacePathOpenerId)
+  ) {
+    return value as WorkspacePathOpenerId
+  }
+
+  throw new Error('Invalid openerId for workspace:open-path')
+}
 
 export function normalizeEnsureDirectoryPayload(payload: unknown): EnsureDirectoryInput {
   if (!payload || typeof payload !== 'object') {
@@ -7,15 +38,30 @@ export function normalizeEnsureDirectoryPayload(payload: unknown): EnsureDirecto
   }
 
   const record = payload as Record<string, unknown>
-  const path = typeof record.path === 'string' ? record.path.trim() : ''
+  return {
+    path: normalizePathValue(record.path, 'workspace:ensure-directory'),
+  }
+}
 
-  if (path.length === 0) {
-    throw new Error('Invalid path for workspace:ensure-directory')
+export function normalizeCopyWorkspacePathPayload(payload: unknown): CopyWorkspacePathInput {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Invalid payload for workspace:copy-path')
   }
 
-  if (!isAbsolute(path)) {
-    throw new Error('workspace:ensure-directory requires an absolute path')
+  const record = payload as Record<string, unknown>
+  return {
+    path: normalizePathValue(record.path, 'workspace:copy-path'),
+  }
+}
+
+export function normalizeOpenWorkspacePathPayload(payload: unknown): OpenWorkspacePathInput {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Invalid payload for workspace:open-path')
   }
 
-  return { path }
+  const record = payload as Record<string, unknown>
+  return {
+    path: normalizePathValue(record.path, 'workspace:open-path'),
+    openerId: normalizeWorkspacePathOpenerId(record.openerId),
+  }
 }
