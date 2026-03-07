@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Node } from '@xyflow/react'
-import { DEFAULT_AGENT_SETTINGS } from '../../../src/renderer/src/features/settings/agentConfig'
+import { DEFAULT_AGENT_SETTINGS } from '../../../src/contexts/settings/domain/agentSettings'
 import type {
   TerminalNodeData,
   WorkspaceSpaceState,

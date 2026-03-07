@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeHydratedCliPath } from '../../../src/main/infrastructure/env/CliEnvironment'
+import { computeHydratedCliPath } from '../../../src/platform/os/CliEnvironment'
 
 describe('computeHydratedCliPath', () => {
   it('keeps PATH unchanged when app is not packaged', () => {

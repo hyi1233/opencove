@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { locateAgentResumeSessionId } from '../../../src/main/infrastructure/agent/AgentSessionLocator'
+import { locateAgentResumeSessionId } from '../../../src/contexts/agent/infrastructure/cli/AgentSessionLocator'
 
 function toDateParts(timestampMs: number): { year: string; month: string; day: string } {
   const date = new Date(timestampMs)

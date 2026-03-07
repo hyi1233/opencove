@@ -53,7 +53,7 @@ describe('persistence IPC handlers', () => {
     }
 
     const { registerPersistenceIpcHandlers } =
-      await import('../../../src/main/modules/persistence/ipc/register')
+      await import('../../../src/platform/persistence/sqlite/ipc/register')
 
     registerPersistenceIpcHandlers(async () => store)
 
@@ -86,7 +86,7 @@ describe('persistence IPC handlers', () => {
     }
 
     const { registerPersistenceIpcHandlers } =
-      await import('../../../src/main/modules/persistence/ipc/register')
+      await import('../../../src/platform/persistence/sqlite/ipc/register')
 
     registerPersistenceIpcHandlers(async () => store)
 
@@ -135,7 +135,7 @@ describe('persistence IPC handlers', () => {
     }
 
     const { registerPersistenceIpcHandlers } =
-      await import('../../../src/main/modules/persistence/ipc/register')
+      await import('../../../src/platform/persistence/sqlite/ipc/register')
 
     registerPersistenceIpcHandlers(async () => store)
 
@@ -188,7 +188,7 @@ describe('persistence IPC handlers', () => {
     }
 
     const { registerPersistenceIpcHandlers } =
-      await import('../../../src/main/modules/persistence/ipc/register')
+      await import('../../../src/platform/persistence/sqlite/ipc/register')
 
     registerPersistenceIpcHandlers(async () => store, { maxRawBytes: 10 })
 
@@ -243,7 +243,7 @@ describe('persistence IPC handlers', () => {
     }
 
     const { registerPersistenceIpcHandlers } =
-      await import('../../../src/main/modules/persistence/ipc/register')
+      await import('../../../src/platform/persistence/sqlite/ipc/register')
 
     const disposable = registerPersistenceIpcHandlers(async () => store)
 
@@ -305,7 +305,7 @@ describe('persistence IPC handlers', () => {
     }
 
     const { registerPersistenceIpcHandlers } =
-      await import('../../../src/main/modules/persistence/ipc/register')
+      await import('../../../src/platform/persistence/sqlite/ipc/register')
 
     registerPersistenceIpcHandlers(async () => store)
 
@@ -337,7 +337,7 @@ describe('persistence IPC handlers', () => {
     }
 
     const { registerPersistenceIpcHandlers } =
-      await import('../../../src/main/modules/persistence/ipc/register')
+      await import('../../../src/platform/persistence/sqlite/ipc/register')
 
     registerPersistenceIpcHandlers(async () => store)
 
@@ -376,7 +376,7 @@ describe('persistence IPC handlers', () => {
     }
 
     const { registerPersistenceIpcHandlers } =
-      await import('../../../src/main/modules/persistence/ipc/register')
+      await import('../../../src/platform/persistence/sqlite/ipc/register')
 
     registerPersistenceIpcHandlers(async () => store)
 

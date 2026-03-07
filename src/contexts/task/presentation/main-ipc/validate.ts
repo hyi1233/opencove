@@ -1,5 +1,5 @@
 import type { SuggestTaskTitleInput } from '../../../../shared/contracts/dto'
-import { normalizeProvider, normalizeStringArray } from '../../../../main/ipc/normalize'
+import { normalizeProvider, normalizeStringArray } from '../../../../app/main/ipc/normalize'
 import { isAbsolute } from 'node:path'
 
 export function normalizeSuggestTaskTitlePayload(payload: unknown): SuggestTaskTitleInput {

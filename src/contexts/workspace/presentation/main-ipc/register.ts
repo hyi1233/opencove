@@ -9,7 +9,7 @@ import type {
   OpenWorkspacePathInput,
   WorkspaceDirectory,
 } from '../../../../shared/contracts/dto'
-import type { IpcRegistrationDisposable } from '../../../../main/ipc/types'
+import type { IpcRegistrationDisposable } from '../../../../app/main/ipc/types'
 import type { ApprovedWorkspaceStore } from '../../infrastructure/approval/ApprovedWorkspaceStore'
 import {
   normalizeCopyWorkspacePathPayload,

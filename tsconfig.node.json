@@ -4,8 +4,6 @@
     "electron.vite.config.*",
     "src/app/main/**/*",
     "src/app/preload/**/*",
-    "src/main/**/*",
-    "src/preload/**/*",
     "src/shared/**/*",
     "src/contexts/**/*",
     "src/platform/**/*"

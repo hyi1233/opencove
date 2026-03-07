@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildTaskTitleCommand } from '../../../src/main/infrastructure/task/TaskTitleCommandFactory'
+import { buildTaskTitleCommand } from '../../../src/contexts/task/infrastructure/cli/TaskTitleCommandFactory'
 
 describe('buildTaskTitleCommand', () => {
   it('uses codex exec with read-only sandbox and output file', () => {

@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import { render, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { DEFAULT_AGENT_SETTINGS } from '../../../src/renderer/src/features/settings/agentConfig'
+import { DEFAULT_AGENT_SETTINGS } from '../../../src/contexts/settings/domain/agentSettings'
 import type { WorkspaceState } from '../../../src/contexts/workspace/presentation/renderer/types'
-import { useAppStore } from '../../../src/renderer/src/app/store/useAppStore'
+import { useAppStore } from '../../../src/app/renderer/shell/store/useAppStore'
 
 const { readPersistedStateWithMeta } = vi.hoisted(() => ({
   readPersistedStateWithMeta: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock('../../../src/contexts/workspace/presentation/renderer/utils/persistence
   }
 })
 
-import { useHydrateAppState } from '../../../src/renderer/src/app/hooks/useHydrateAppState'
+import { useHydrateAppState } from '../../../src/app/renderer/shell/hooks/useHydrateAppState'
 
 describe('useHydrateAppState recovery notice', () => {
   beforeEach(() => {

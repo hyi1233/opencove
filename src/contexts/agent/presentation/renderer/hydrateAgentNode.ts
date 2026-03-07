@@ -3,7 +3,7 @@ import type {
   AgentNodeData,
   TerminalNodeData,
 } from '@contexts/workspace/presentation/renderer/types'
-import { toAgentNodeTitle, toErrorMessage } from '@renderer/app/utils/format'
+import { toAgentNodeTitle, toErrorMessage } from '@app/renderer/shell/utils/format'
 import {
   clearResumeSessionBinding,
   isResumeSessionBindingVerified,

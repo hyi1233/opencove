@@ -53,7 +53,7 @@ describe('GitWorktreeService', () => {
     await mkdir(worktreesRoot, { recursive: true })
 
     const { createGitWorktree, listGitWorktrees } =
-      await import('../../../src/main/infrastructure/worktree/GitWorktreeService')
+      await import('../../../src/contexts/worktree/infrastructure/git/GitWorktreeService')
 
     const initial = await listGitWorktrees({ repoPath: canonicalRepoDir })
     expect(initial.worktrees.some(entry => entry.path === canonicalRepoDir)).toBe(true)
@@ -79,7 +79,7 @@ describe('GitWorktreeService', () => {
     await mkdir(worktreesRoot, { recursive: true })
 
     const { createGitWorktree, listGitBranches, listGitWorktrees, removeGitWorktree } =
-      await import('../../../src/main/infrastructure/worktree/GitWorktreeService')
+      await import('../../../src/contexts/worktree/infrastructure/git/GitWorktreeService')
 
     const created = await createGitWorktree({
       repoPath: canonicalRepoDir,
@@ -113,7 +113,7 @@ describe('GitWorktreeService', () => {
     await mkdir(worktreesRoot, { recursive: true })
 
     const { createGitWorktree, listGitBranches, listGitWorktrees, renameGitBranch } =
-      await import('../../../src/main/infrastructure/worktree/GitWorktreeService')
+      await import('../../../src/contexts/worktree/infrastructure/git/GitWorktreeService')
 
     const created = await createGitWorktree({
       repoPath: canonicalRepoDir,
@@ -150,7 +150,7 @@ describe('GitWorktreeService', () => {
     await mkdir(worktreesRoot, { recursive: true })
 
     const { createGitWorktree } =
-      await import('../../../src/main/infrastructure/worktree/GitWorktreeService')
+      await import('../../../src/contexts/worktree/infrastructure/git/GitWorktreeService')
 
     await createGitWorktree({
       repoPath: canonicalRepoDir,

@@ -10,8 +10,8 @@ import type {
   SpawnTerminalInput,
   WriteTerminalInput,
 } from '../../../../shared/contracts/dto'
-import type { IpcRegistrationDisposable } from '../../../../main/ipc/types'
-import type { ApprovedWorkspaceStore } from '../../../../main/modules/workspace/ApprovedWorkspaceStore'
+import type { IpcRegistrationDisposable } from '../../../../app/main/ipc/types'
+import type { ApprovedWorkspaceStore } from '../../../../contexts/workspace/infrastructure/approval/ApprovedWorkspaceStore'
 import type { PtyRuntime } from './runtime'
 import {
   normalizeAttachTerminalPayload,

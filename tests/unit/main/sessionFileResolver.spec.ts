@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve as resolvePath } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { resolveSessionFilePath } from '../../../src/main/infrastructure/session/SessionFileResolver'
+import { resolveSessionFilePath } from '../../../src/contexts/agent/infrastructure/watchers/SessionFileResolver'
 
 describe('resolveSessionFilePath', () => {
   it('returns null for claude-code when session file does not exist yet', async () => {

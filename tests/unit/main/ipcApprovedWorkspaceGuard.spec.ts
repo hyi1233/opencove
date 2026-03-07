@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { IPC_CHANNELS } from '../../../src/shared/constants/ipc'
-import type { ApprovedWorkspaceStore } from '../../../src/main/modules/workspace/ApprovedWorkspaceStore'
-import type { PtyRuntime } from '../../../src/main/modules/pty/ipc/runtime'
+import type { ApprovedWorkspaceStore } from '../../../src/contexts/workspace/infrastructure/approval/ApprovedWorkspaceStore'
+import type { PtyRuntime } from '../../../src/contexts/terminal/presentation/main-ipc/runtime'
 
 function createIpcHarness() {
   const handlers = new Map<string, (...args: unknown[]) => unknown>()
@@ -52,7 +52,8 @@ describe('IPC approved workspace guards', () => {
     const runtime = createPtyRuntimeMock()
     const store = createApprovedWorkspaceStoreMock({ isPathApproved: false })
 
-    const { registerPtyIpcHandlers } = await import('../../../src/main/modules/pty/ipc/register')
+    const { registerPtyIpcHandlers } =
+      await import('../../../src/contexts/terminal/presentation/main-ipc/register')
     const disposable = registerPtyIpcHandlers(runtime, store)
 
     const spawnHandler = handlers.get(IPC_CHANNELS.ptySpawn)
@@ -80,7 +81,8 @@ describe('IPC approved workspace guards', () => {
     const runtime = createPtyRuntimeMock()
     const store = createApprovedWorkspaceStoreMock({ isPathApproved: true })
 
-    const { registerPtyIpcHandlers } = await import('../../../src/main/modules/pty/ipc/register')
+    const { registerPtyIpcHandlers } =
+      await import('../../../src/contexts/terminal/presentation/main-ipc/register')
     registerPtyIpcHandlers(runtime, store)
 
     const spawnHandler = handlers.get(IPC_CHANNELS.ptySpawn)
@@ -114,7 +116,7 @@ describe('IPC approved workspace guards', () => {
       const store = createApprovedWorkspaceStoreMock({ isPathApproved: false })
 
       const { registerAgentIpcHandlers } =
-        await import('../../../src/main/modules/agent/ipc/register')
+        await import('../../../src/contexts/agent/presentation/main-ipc/register')
       registerAgentIpcHandlers(runtime, store)
 
       const launchHandler = handlers.get(IPC_CHANNELS.agentLaunch)
@@ -163,7 +165,7 @@ describe('IPC approved workspace guards', () => {
       const store = createApprovedWorkspaceStoreMock({ isPathApproved: true })
 
       const { registerAgentIpcHandlers } =
-        await import('../../../src/main/modules/agent/ipc/register')
+        await import('../../../src/contexts/agent/presentation/main-ipc/register')
       registerAgentIpcHandlers(runtime, store)
 
       const launchHandler = handlers.get(IPC_CHANNELS.agentLaunch)
@@ -203,7 +205,7 @@ describe('IPC approved workspace guards', () => {
       const store = createApprovedWorkspaceStoreMock({ isPathApproved: true })
 
       const { registerAgentIpcHandlers } =
-        await import('../../../src/main/modules/agent/ipc/register')
+        await import('../../../src/contexts/agent/presentation/main-ipc/register')
       registerAgentIpcHandlers(runtime, store)
 
       const launchHandler = handlers.get(IPC_CHANNELS.agentLaunch)
@@ -254,7 +256,7 @@ describe('IPC approved workspace guards', () => {
       const store = createApprovedWorkspaceStoreMock({ isPathApproved: false })
 
       const { registerTaskIpcHandlers } =
-        await import('../../../src/main/modules/task/ipc/register')
+        await import('../../../src/contexts/task/presentation/main-ipc/register')
       registerTaskIpcHandlers(store)
 
       const suggestHandler = handlers.get(IPC_CHANNELS.taskSuggestTitle)
@@ -298,7 +300,7 @@ describe('IPC approved workspace guards', () => {
       const store = createApprovedWorkspaceStoreMock({ isPathApproved: true })
 
       const { registerTaskIpcHandlers } =
-        await import('../../../src/main/modules/task/ipc/register')
+        await import('../../../src/contexts/task/presentation/main-ipc/register')
       registerTaskIpcHandlers(store)
 
       const suggestHandler = handlers.get(IPC_CHANNELS.taskSuggestTitle)

@@ -77,7 +77,7 @@ describe('PersistenceStore', () => {
     vi.doMock('better-sqlite3', () => ({ default: MockDatabase }))
 
     const { createPersistenceStore } =
-      await import('../../../src/main/modules/persistence/PersistenceStore')
+      await import('../../../src/platform/persistence/sqlite/PersistenceStore')
 
     const store = await createPersistenceStore({ dbPath })
     store.dispose()
@@ -130,7 +130,7 @@ describe('PersistenceStore', () => {
     vi.doMock('better-sqlite3', () => ({ default: MockDatabase }))
 
     const { createPersistenceStore } =
-      await import('../../../src/main/modules/persistence/PersistenceStore')
+      await import('../../../src/platform/persistence/sqlite/PersistenceStore')
 
     const store = await createPersistenceStore({ dbPath })
     store.dispose()

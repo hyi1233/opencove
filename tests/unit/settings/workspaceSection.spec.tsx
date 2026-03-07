@@ -1,7 +1,7 @@
 import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { WorkspaceSection } from '../../../src/renderer/src/features/settings/components/settingsPanel/WorkspaceSection'
+import { WorkspaceSection } from '../../../src/contexts/settings/presentation/renderer/settingsPanel/WorkspaceSection'
 
 describe('WorkspaceSection', () => {
   it('renders project worktree root controls with description', () => {

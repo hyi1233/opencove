@@ -7,7 +7,7 @@ import type {
   ResolveAgentResumeSessionInput,
   ResolveAgentResumeSessionResult,
 } from '../../../../shared/contracts/dto'
-import type { IpcRegistrationDisposable } from '../../../../main/ipc/types'
+import type { IpcRegistrationDisposable } from '../../../../app/main/ipc/types'
 import { buildAgentLaunchCommand } from '../../infrastructure/cli/AgentCommandFactory'
 import {
   disposeAgentModelService,
@@ -15,7 +15,7 @@ import {
 } from '../../infrastructure/cli/AgentModelService'
 import { locateAgentResumeSessionId } from '../../infrastructure/cli/AgentSessionLocator'
 import type { PtyRuntime } from '../../../terminal/presentation/main-ipc/runtime'
-import type { ApprovedWorkspaceStore } from '../../../../main/modules/workspace/ApprovedWorkspaceStore'
+import type { ApprovedWorkspaceStore } from '../../../../contexts/workspace/infrastructure/approval/ApprovedWorkspaceStore'
 import {
   normalizeLaunchAgentPayload,
   normalizeListModelsPayload,

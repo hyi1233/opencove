@@ -20,7 +20,7 @@ vi.mock('node:os', () => ({
   default: osMock,
 }))
 
-import { locateAgentResumeSessionId } from '../../../src/main/infrastructure/agent/AgentSessionLocator'
+import { locateAgentResumeSessionId } from '../../../src/contexts/agent/infrastructure/cli/AgentSessionLocator'
 
 function createFileEntry(name: string): Dirent {
   return {

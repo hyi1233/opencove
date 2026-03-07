@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { SessionTurnStateWatcher } from '../../../src/main/infrastructure/session/SessionTurnStateWatcher'
+import { SessionTurnStateWatcher } from '../../../src/contexts/agent/infrastructure/watchers/SessionTurnStateWatcher'
 import { afterEach, describe, expect, it } from 'vitest'
 
 async function waitForCondition(assertion: () => void, timeoutMs = 1500): Promise<void> {

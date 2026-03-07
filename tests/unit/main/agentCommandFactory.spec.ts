@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildAgentLaunchCommand } from '../../../src/main/infrastructure/agent/AgentCommandFactory'
+import { buildAgentLaunchCommand } from '../../../src/contexts/agent/infrastructure/cli/AgentCommandFactory'
 
 describe('buildAgentLaunchCommand', () => {
   it('builds codex command with model override', () => {

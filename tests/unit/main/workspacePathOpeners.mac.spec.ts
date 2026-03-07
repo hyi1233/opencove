@@ -64,7 +64,7 @@ describe('workspace path openers IPC on macOS', () => {
     }
 
     const { registerWorkspaceIpcHandlers } =
-      await import('../../../src/main/modules/workspace/ipc/register')
+      await import('../../../src/contexts/workspace/presentation/main-ipc/register')
 
     registerWorkspaceIpcHandlers(store)
 

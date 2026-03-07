@@ -86,7 +86,6 @@ export default defineConfig({
         '@app': resolve(__dirname, 'src/app'),
         '@contexts': resolve(__dirname, 'src/contexts'),
         '@platform': resolve(__dirname, 'src/platform'),
-        '@renderer': resolve(__dirname, 'src/renderer/src'),
         '@shared': resolve(__dirname, 'src/shared'),
       },
     },

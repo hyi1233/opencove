@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   disposeAgentModelService,
   listAgentModels,
-} from '../../../src/main/infrastructure/agent/AgentModelService'
+} from '../../../src/contexts/agent/infrastructure/cli/AgentModelService'
 
 const { spawnMock } = vi.hoisted(() => ({
   spawnMock: vi.fn<typeof import('node:child_process').spawn>(),

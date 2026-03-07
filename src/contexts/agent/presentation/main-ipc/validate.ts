@@ -4,7 +4,7 @@ import type {
   ListAgentModelsInput,
   ResolveAgentResumeSessionInput,
 } from '../../../../shared/contracts/dto'
-import { normalizeProvider } from '../../../../main/ipc/normalize'
+import { normalizeProvider } from '../../../../app/main/ipc/normalize'
 import { isAbsolute } from 'node:path'
 
 export function normalizeListModelsPayload(payload: unknown): ListAgentModelsInput {

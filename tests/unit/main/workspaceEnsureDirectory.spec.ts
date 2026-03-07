@@ -71,7 +71,7 @@ describe('workspace ensureDirectory IPC', () => {
 
     try {
       const { registerWorkspaceIpcHandlers } =
-        await import('../../../src/main/modules/workspace/ipc/register')
+        await import('../../../src/contexts/workspace/presentation/main-ipc/register')
 
       const disposable = registerWorkspaceIpcHandlers(store)
 

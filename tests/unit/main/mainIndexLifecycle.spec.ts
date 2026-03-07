@@ -75,7 +75,7 @@ describe('main process lifecycle', () => {
       registerIpcHandlers: () => ({ dispose }),
     }))
 
-    await import('../../../src/main/index')
+    await import('../../../src/app/main/index')
     await Promise.resolve()
 
     app.emit('window-all-closed')
@@ -170,7 +170,7 @@ describe('main process lifecycle', () => {
         registerIpcHandlers: () => ({ dispose }),
       }))
 
-      await import('../../../src/main/index')
+      await import('../../../src/app/main/index')
       await Promise.resolve()
 
       const mainWindow = BrowserWindow.windows[0]
@@ -289,7 +289,7 @@ describe('main process lifecycle', () => {
         registerIpcHandlers: () => ({ dispose }),
       }))
 
-      await import('../../../src/main/index')
+      await import('../../../src/app/main/index')
       await Promise.resolve()
 
       const mainWindow = BrowserWindow.windows[0]
@@ -410,7 +410,7 @@ describe('main process lifecycle', () => {
         registerIpcHandlers: () => ({ dispose }),
       }))
 
-      await import('../../../src/main/index')
+      await import('../../../src/app/main/index')
       await Promise.resolve()
 
       const mainWindow = BrowserWindow.windows[0]

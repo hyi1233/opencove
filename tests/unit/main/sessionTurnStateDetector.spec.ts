@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { detectTurnStateFromSessionLine } from '../../../src/main/infrastructure/session/SessionTurnStateDetector'
+import { detectTurnStateFromSessionLine } from '../../../src/contexts/agent/infrastructure/watchers/SessionTurnStateDetector'
 
 describe('detectTurnStateFromSessionLine', () => {
   it('detects claude assistant thinking chunks as working', () => {

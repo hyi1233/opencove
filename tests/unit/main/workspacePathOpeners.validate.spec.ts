@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 describe('workspace path opener validation', () => {
   it('accepts the supported opener ids and absolute path formats', async () => {
     const { normalizeOpenWorkspacePathPayload } =
-      await import('../../../src/main/modules/workspace/ipc/validate')
+      await import('../../../src/contexts/workspace/presentation/main-ipc/validate')
 
     expect(
       normalizeOpenWorkspacePathPayload({

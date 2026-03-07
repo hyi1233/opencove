@@ -5,7 +5,7 @@ import {
   resolveAgentModel,
   resolveTaskTitleModel,
   resolveTaskTitleProvider,
-} from '../../../src/renderer/src/features/settings/agentConfig'
+} from '../../../src/contexts/settings/domain/agentSettings'
 
 describe('agent settings normalization', () => {
   it('returns defaults for invalid input', () => {

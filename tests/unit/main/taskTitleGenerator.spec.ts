@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { suggestTaskTitle } from '../../../src/main/infrastructure/task/TaskTitleGenerator'
+import { suggestTaskTitle } from '../../../src/contexts/task/infrastructure/cli/TaskTitleGenerator'
 
 describe('suggestTaskTitle', () => {
   it('returns deterministic title in test mode', async () => {

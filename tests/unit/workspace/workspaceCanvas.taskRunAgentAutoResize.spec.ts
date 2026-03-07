@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Node } from '@xyflow/react'
-import { DEFAULT_AGENT_SETTINGS } from '../../../src/renderer/src/features/settings/agentConfig'
+import { DEFAULT_AGENT_SETTINGS } from '../../../src/contexts/settings/domain/agentSettings'
 import type {
   TerminalNodeData,
   WorkspaceSpaceState,

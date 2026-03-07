@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { DEFAULT_AGENT_SETTINGS } from '../../../src/renderer/src/features/settings/agentConfig'
+import { DEFAULT_AGENT_SETTINGS } from '../../../src/contexts/settings/domain/agentSettings'
 import type { WorkspaceState } from '../../../src/contexts/workspace/presentation/renderer/types'
 import { installMockStorage } from '../workspace/persistenceTestStorage'
 
@@ -89,7 +89,7 @@ function installMockApi({
 }
 
 function createHarness(
-  useHydrateAppStateHook: typeof import('../../../src/renderer/src/app/hooks/useHydrateAppState').useHydrateAppState,
+  useHydrateAppStateHook: typeof import('../../../src/app/renderer/shell/hooks/useHydrateAppState').useHydrateAppState,
 ) {
   return function Harness() {
     const [_agentSettings, setAgentSettings] = useState(DEFAULT_AGENT_SETTINGS)
@@ -154,7 +154,7 @@ describe('useHydrateAppState agent session restore', () => {
     installMockApi({ spawn, launch })
 
     const { useHydrateAppState } =
-      await import('../../../src/renderer/src/app/hooks/useHydrateAppState')
+      await import('../../../src/app/renderer/shell/hooks/useHydrateAppState')
 
     render(React.createElement(createHarness(useHydrateAppState)))
 
@@ -207,7 +207,7 @@ describe('useHydrateAppState agent session restore', () => {
     installMockApi({ spawn, launch, resolveResumeSessionId })
 
     const { useHydrateAppState } =
-      await import('../../../src/renderer/src/app/hooks/useHydrateAppState')
+      await import('../../../src/app/renderer/shell/hooks/useHydrateAppState')
 
     render(React.createElement(createHarness(useHydrateAppState)))
 
@@ -269,7 +269,7 @@ describe('useHydrateAppState agent session restore', () => {
     installMockApi({ spawn, launch, resolveResumeSessionId })
 
     const { useHydrateAppState } =
-      await import('../../../src/renderer/src/app/hooks/useHydrateAppState')
+      await import('../../../src/app/renderer/shell/hooks/useHydrateAppState')
 
     render(React.createElement(createHarness(useHydrateAppState)))
 

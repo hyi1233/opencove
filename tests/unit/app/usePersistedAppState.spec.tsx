@@ -1,7 +1,7 @@
 import React from 'react'
 import { render, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { DEFAULT_AGENT_SETTINGS } from '../../../src/renderer/src/features/settings/agentConfig'
+import { DEFAULT_AGENT_SETTINGS } from '../../../src/contexts/settings/domain/agentSettings'
 
 const { flushScheduledPersistedStateWrite, schedulePersistedStateWrite } = vi.hoisted(() => ({
   flushScheduledPersistedStateWrite: vi.fn(),
@@ -38,8 +38,8 @@ vi.mock(
   },
 )
 
-import { usePersistedAppState } from '../../../src/renderer/src/app/hooks/usePersistedAppState'
-import { useAppStore } from '../../../src/renderer/src/app/store/useAppStore'
+import { usePersistedAppState } from '../../../src/app/renderer/shell/hooks/usePersistedAppState'
+import { useAppStore } from '../../../src/app/renderer/shell/store/useAppStore'
 
 describe('usePersistedAppState', () => {
   beforeEach(() => {
