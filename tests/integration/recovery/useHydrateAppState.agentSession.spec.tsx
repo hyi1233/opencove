@@ -97,6 +97,7 @@ function createHarness(
     const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null)
 
     const { isHydrated } = useHydrateAppStateHook({
+      activeWorkspaceId,
       setAgentSettings,
       setWorkspaces,
       setActiveWorkspaceId,

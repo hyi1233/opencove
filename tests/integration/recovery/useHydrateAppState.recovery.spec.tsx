@@ -40,6 +40,7 @@ describe('useHydrateAppState recovery notice', () => {
       const [_activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null)
 
       const { isHydrated } = useHydrateAppState({
+        activeWorkspaceId: _activeWorkspaceId,
         setAgentSettings,
         setWorkspaces,
         setActiveWorkspaceId,

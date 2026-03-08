@@ -18,7 +18,7 @@ function createDeferred<T>() {
 }
 
 describe('useHydrateAppState merge behavior', () => {
-  it('preserves user-created nodes while workspace hydration is in-flight', async () => {
+  it('shows persisted nodes immediately and preserves user-created nodes while hydration is in-flight', async () => {
     const storage = installMockStorage()
 
     const persistedState = {
@@ -58,14 +58,13 @@ describe('useHydrateAppState merge behavior', () => {
     storage.setItem('cove:m0:workspace-state', JSON.stringify(persistedState))
 
     const spawnDeferred = createDeferred<{ sessionId: string }>()
+    const spawn = vi.fn(() => spawnDeferred.promise)
 
     Object.defineProperty(window, 'coveApi', {
       configurable: true,
       writable: true,
       value: {
-        pty: {
-          spawn: vi.fn(() => spawnDeferred.promise),
-        },
+        pty: { spawn },
         agent: {
           launch: vi.fn(async () => {
             throw new Error('not used')
@@ -83,6 +82,7 @@ describe('useHydrateAppState merge behavior', () => {
       const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null)
 
       const { isHydrated } = useHydrateAppState({
+        activeWorkspaceId,
         setAgentSettings,
         setWorkspaces,
         setActiveWorkspaceId,
@@ -117,6 +117,7 @@ describe('useHydrateAppState merge behavior', () => {
                     scrollback: null,
                     agent: null,
                     task: null,
+                    note: null,
                   },
                   draggable: true,
                   selectable: true,
@@ -148,10 +149,17 @@ describe('useHydrateAppState merge behavior', () => {
       expect(screen.getByTestId('active-workspace')).toHaveTextContent('workspace-1')
     })
 
+    await waitFor(() => {
+      expect(screen.getByTestId('node-count')).toHaveTextContent('1')
+    })
+
+    expect(screen.getByTestId('hydrated')).toHaveTextContent('false')
+    expect(spawn).toHaveBeenCalledTimes(1)
+
     fireEvent.click(screen.getByRole('button', { name: 'Add node' }))
 
     await waitFor(() => {
-      expect(screen.getByTestId('node-count')).toHaveTextContent('1')
+      expect(screen.getByTestId('node-count')).toHaveTextContent('2')
     })
 
     spawnDeferred.resolve({ sessionId: 'restored-session' })
@@ -163,7 +171,7 @@ describe('useHydrateAppState merge behavior', () => {
     expect(screen.getByTestId('node-count')).toHaveTextContent('2')
   })
 
-  it('merges hydrated workspaces without overwriting user edits in other workspaces', async () => {
+  it('defers inactive workspace hydration until selected and preserves later edits', async () => {
     const storage = installMockStorage()
 
     const persistedState = {
@@ -240,9 +248,7 @@ describe('useHydrateAppState merge behavior', () => {
       configurable: true,
       writable: true,
       value: {
-        pty: {
-          spawn,
-        },
+        pty: { spawn },
         agent: {
           launch: vi.fn(async () => {
             throw new Error('not used')
@@ -260,6 +266,7 @@ describe('useHydrateAppState merge behavior', () => {
       const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null)
 
       const { isHydrated } = useHydrateAppState({
+        activeWorkspaceId,
         setAgentSettings,
         setWorkspaces,
         setActiveWorkspaceId,
@@ -294,6 +301,7 @@ describe('useHydrateAppState merge behavior', () => {
                     scrollback: null,
                     agent: null,
                     task: null,
+                    note: null,
                   },
                   draggable: true,
                   selectable: true,
@@ -302,6 +310,10 @@ describe('useHydrateAppState merge behavior', () => {
             }
           }),
         )
+      }, [])
+
+      const selectWorkspace2 = useCallback(() => {
+        setActiveWorkspaceId('workspace-2')
       }, [])
 
       const nodeCount1 =
@@ -318,6 +330,9 @@ describe('useHydrateAppState merge behavior', () => {
           <button type="button" onClick={addWorkspace2Node}>
             Add node workspace 2
           </button>
+          <button type="button" onClick={selectWorkspace2}>
+            Select workspace 2
+          </button>
         </div>
       )
     }
@@ -328,24 +343,44 @@ describe('useHydrateAppState merge behavior', () => {
       expect(screen.getByTestId('active-workspace')).toHaveTextContent('workspace-1')
     })
 
-    spawnDeferred1.resolve({ sessionId: 'restored-session-1' })
-
     await waitFor(() => {
       expect(screen.getByTestId('node-count-1')).toHaveTextContent('1')
     })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Add node workspace 2' }))
 
     await waitFor(() => {
       expect(screen.getByTestId('node-count-2')).toHaveTextContent('1')
     })
 
-    spawnDeferred2.resolve({ sessionId: 'restored-session-2' })
+    expect(spawn).toHaveBeenCalledTimes(1)
+
+    spawnDeferred1.resolve({ sessionId: 'restored-session-1' })
 
     await waitFor(() => {
       expect(screen.getByTestId('hydrated')).toHaveTextContent('true')
     })
 
-    expect(screen.getByTestId('node-count-2')).toHaveTextContent('2')
+    fireEvent.click(screen.getByRole('button', { name: 'Add node workspace 2' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('node-count-2')).toHaveTextContent('2')
+    })
+
+    expect(spawn).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select workspace 2' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('active-workspace')).toHaveTextContent('workspace-2')
+    })
+
+    await waitFor(() => {
+      expect(spawn).toHaveBeenCalledTimes(2)
+    })
+
+    spawnDeferred2.resolve({ sessionId: 'restored-session-2' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('node-count-2')).toHaveTextContent('2')
+    })
   })
 })

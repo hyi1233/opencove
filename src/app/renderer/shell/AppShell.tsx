@@ -41,7 +41,8 @@ export default function App(): React.JSX.Element {
     setIsSettingsOpen,
   } = useAppStore()
 
-  const { isHydrated } = useHydrateAppState({
+  const { isPersistReady } = useHydrateAppState({
+    activeWorkspaceId,
     setAgentSettings,
     setWorkspaces,
     setActiveWorkspaceId,
@@ -66,7 +67,7 @@ export default function App(): React.JSX.Element {
     workspaces,
     activeWorkspaceId,
     agentSettings,
-    isHydrated,
+    isHydrated: isPersistReady,
     producePersistedState,
   })
 

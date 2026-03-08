@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import { SerializeAddon } from '@xterm/addon-serialize'
@@ -130,12 +130,13 @@ export function TerminalNode({
   })
 
   const renderedSize = draftSize ?? { width, height }
-  const sizeStyle = useMemo(
-    () => ({ width: renderedSize.width, height: renderedSize.height }),
-    [renderedSize.height, renderedSize.width],
-  )
+  const sizeStyle = { width: renderedSize.width, height: renderedSize.height }
 
   useEffect(() => {
+    if (sessionId.trim().length === 0) {
+      return undefined
+    }
+
     const ptyWithOptionalAttach = window.coveApi.pty as typeof window.coveApi.pty & {
       attach?: (payload: { sessionId: string }) => Promise<void>
       detach?: (payload: { sessionId: string }) => Promise<void>
@@ -181,8 +182,6 @@ export function TerminalNode({
       }
 
       if (event.type === 'keydown') {
-        // Align Shift+Enter with Codex/Claude terminal fallback:
-        // send Escape+Enter so apps can treat it as "insert newline".
         ptyWriteQueue.enqueue('\u001b\r')
         ptyWriteQueue.flush()
       }
@@ -478,7 +477,7 @@ export function TerminalNode({
       <div
         ref={containerRef}
         className={`terminal-node__terminal nodrag ${isTerminalHydrated ? '' : 'terminal-node__terminal--hydrating'}`.trim()}
-        aria-busy={isTerminalHydrated ? 'false' : 'true'}
+        aria-busy={sessionId.trim().length > 0 && isTerminalHydrated ? 'false' : 'true'}
       />
       <button
         type="button"
