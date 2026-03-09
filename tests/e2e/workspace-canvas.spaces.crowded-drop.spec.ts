@@ -273,11 +273,14 @@ test.describe('Workspace Canvas - Spaces (Crowded Drop)', () => {
       await expect(window.locator('.react-flow__node.selected')).toHaveCount(2)
 
       await expect(window.locator('.react-flow__selection')).toHaveCount(0)
-      const dragOverlay = dragNodeB.locator('[data-testid="terminal-node-selected-drag-overlay"]')
-      await expect(dragOverlay).toBeVisible()
+      const spaceRegion = window
+        .locator('.workspace-space-region')
+        .filter({ hasText: 'Multi Full Scope' })
+        .first()
+      await expect(spaceRegion).toBeVisible()
 
-      await dragLocatorTo(window, dragOverlay, pane, {
-        targetPosition: { x: 220, y: 220 },
+      await dragLocatorTo(window, dragNodeB.locator('.terminal-node__header'), spaceRegion, {
+        sourcePosition: { x: 80, y: 16 },
       })
 
       const assertSpaceStable = async (): Promise<boolean> => {
