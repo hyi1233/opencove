@@ -104,9 +104,11 @@ function runCommand(args, env = process.env) {
 }
 
 async function main() {
-  const buildResult = await runCommand(['build'])
-  if (buildResult.code !== 0) {
-    process.exit(buildResult.code)
+  if (!isTruthyEnv(process.env['OPENCOVE_E2E_SKIP_BUILD'])) {
+    const buildResult = await runCommand(['build'])
+    if (buildResult.code !== 0) {
+      process.exit(buildResult.code)
+    }
   }
 
   const currentWindowMode = resolveWindowMode(process.env['OPENCOVE_E2E_WINDOW_MODE'])

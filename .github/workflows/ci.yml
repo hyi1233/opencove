@@ -18,6 +18,8 @@ jobs:
         os: [macos-latest, ubuntu-latest]
 
     runs-on: ${{ matrix.os }}
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
 
     steps:
       - name: Checkout
@@ -55,16 +57,26 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
       - name: E2E tests
         if: matrix.os == 'macos-latest'
+        env:
+          OPENCOVE_E2E_SKIP_BUILD: '1'
+          OPENCOVE_E2E_WINDOW_MODE: inactive
         run: pnpm test:e2e
 
       - name: E2E tests
         if: matrix.os == 'ubuntu-latest'
         env:
+          OPENCOVE_E2E_SKIP_BUILD: '1'
           OPENCOVE_E2E_WINDOW_MODE: inactive
         run: xvfb-run -a pnpm test:e2e
 
