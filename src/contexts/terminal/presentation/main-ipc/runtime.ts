@@ -303,7 +303,7 @@ export function createPtyRuntime(): PtyRuntime {
       clearSessionProbeState(sessionId)
       sessionStateWatcher.disposeSession(sessionId)
       cleanupSessionPtyDataSubscriptions(sessionId)
-      ptyManager.delete(sessionId, { keepSnapshot: true })
+      ptyManager.delete(sessionId)
       const eventPayload: TerminalExitEvent = {
         sessionId,
         exitCode: exit.exitCode,

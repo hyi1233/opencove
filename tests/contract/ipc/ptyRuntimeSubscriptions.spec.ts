@@ -32,6 +32,7 @@ describe('Pty runtime subscriptions', () => {
 
     let onDataHandler: ((data: string) => void) | null = null
     let onExitHandler: ((event: { exitCode: number }) => void) | null = null
+    const snapshotBySession = new Map<string, string>()
 
     const pty = {
       onData: (handler: (data: string) => void) => {
@@ -43,14 +44,18 @@ describe('Pty runtime subscriptions', () => {
     }
 
     class MockPtyManager {
-      public appendSnapshotData(): void {}
-      public snapshot(): string {
-        return ''
+      public appendSnapshotData(sessionId: string, data: string): void {
+        snapshotBySession.set(sessionId, `${snapshotBySession.get(sessionId) ?? ''}${data}`)
+      }
+      public snapshot(sessionId: string): string {
+        return snapshotBySession.get(sessionId) ?? ''
       }
       public write(): void {}
       public resize(): void {}
       public kill(): void {}
-      public delete(): void {}
+      public delete(sessionId: string): void {
+        snapshotBySession.delete(sessionId)
+      }
       public disposeAll(): void {}
 
       public spawnSession(): { sessionId: string; pty: typeof pty } {
@@ -82,10 +87,12 @@ describe('Pty runtime subscriptions', () => {
     expect(send.mock.calls.filter(([channel]) => channel === IPC_CHANNELS.ptyData)).toEqual([
       [IPC_CHANNELS.ptyData, { sessionId: 'session-1', data: 'hello' }],
     ])
+    expect(runtime.snapshot('session-1')).toBe('hello')
 
     onExitHandler?.({ exitCode: 0 })
 
     expect(send.mock.calls.some(([channel]) => channel === IPC_CHANNELS.ptyExit)).toBe(true)
+    expect(runtime.snapshot('session-1')).toBe('')
 
     send.mockClear()
 
