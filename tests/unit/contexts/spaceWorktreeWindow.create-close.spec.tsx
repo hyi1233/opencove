@@ -69,6 +69,7 @@ describe('SpaceWorktreeWindow create flow', () => {
     render(
       <SpaceWorktreeWindow
         spaceId="space-1"
+        initialViewMode="create"
         spaces={createSpaces('/repo')}
         nodes={createNodes()}
         workspacePath="/repo"
@@ -84,9 +85,9 @@ describe('SpaceWorktreeWindow create flow', () => {
     await waitFor(() => {
       expect(listBranches).toHaveBeenCalledTimes(1)
       expect(listWorktrees).toHaveBeenCalledTimes(1)
+      expect(screen.getByTestId('space-worktree-create')).not.toBeDisabled()
     })
 
-    fireEvent.click(await screen.findByTestId('space-worktree-open-create'))
     expect(await screen.findByTestId('space-worktree-create-view')).toBeVisible()
     expect(screen.queryByTestId('space-worktree-name')).not.toBeInTheDocument()
 

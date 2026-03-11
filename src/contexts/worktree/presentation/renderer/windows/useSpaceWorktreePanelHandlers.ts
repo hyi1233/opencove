@@ -3,7 +3,6 @@ import type { BranchMode } from './spaceWorktree.shared'
 
 export function useSpaceWorktreePanelHandlers({
   setError,
-  setViewMode,
   setDeleteBranchOnArchive,
   setArchiveSpaceOnArchive,
   setBranchMode,
@@ -15,7 +14,6 @@ export function useSpaceWorktreePanelHandlers({
   handleArchive,
 }: {
   setError: React.Dispatch<React.SetStateAction<string | null>>
-  setViewMode: React.Dispatch<React.SetStateAction<'home' | 'create' | 'archive'>>
   setDeleteBranchOnArchive: React.Dispatch<React.SetStateAction<boolean>>
   setArchiveSpaceOnArchive: React.Dispatch<React.SetStateAction<boolean>>
   setBranchMode: React.Dispatch<React.SetStateAction<BranchMode>>
@@ -26,9 +24,6 @@ export function useSpaceWorktreePanelHandlers({
   handleCreate: () => Promise<void>
   handleArchive: () => Promise<void>
 }): {
-  onOpenCreate: () => void
-  onOpenArchive: () => void
-  onBackHome: () => void
   onBranchModeChange: (mode: BranchMode) => void
   onNewBranchNameChange: (value: string) => void
   onStartPointChange: (value: string) => void
@@ -41,20 +36,6 @@ export function useSpaceWorktreePanelHandlers({
 } {
   return useMemo(
     () => ({
-      onOpenCreate: () => {
-        setError(null)
-        setViewMode('create')
-      },
-      onOpenArchive: () => {
-        setError(null)
-        setDeleteBranchOnArchive(false)
-        setArchiveSpaceOnArchive(false)
-        setViewMode('archive')
-      },
-      onBackHome: () => {
-        setViewMode('home')
-        setError(null)
-      },
       onBranchModeChange: (mode: BranchMode) => {
         setBranchMode(mode)
         setError(null)
@@ -100,7 +81,6 @@ export function useSpaceWorktreePanelHandlers({
       setExistingBranchName,
       setNewBranchName,
       setStartPoint,
-      setViewMode,
     ],
   )
 }

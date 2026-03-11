@@ -4,13 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WorkspaceSpaceActionMenu } from '../../../src/contexts/workspace/presentation/renderer/components/workspaceCanvas/view/WorkspaceSpaceActionMenu'
 import type { WorkspacePathOpener } from '../../../src/shared/types/api'
 
-function renderMenu(openers: WorkspacePathOpener[]) {
+function renderMenu(
+  openers: WorkspacePathOpener[],
+  options?: { canCreateWorktree?: boolean; canArchive?: boolean },
+) {
   render(
     <WorkspaceSpaceActionMenu
       menu={{ spaceId: 'space-1', x: 120, y: 80 }}
       availableOpeners={openers}
-      canCreateWorktree={false}
-      canArchive={false}
+      canCreateWorktree={options?.canCreateWorktree ?? false}
+      canArchive={options?.canArchive ?? false}
       closeMenu={() => undefined}
       onCreateWorktree={() => undefined}
       onArchive={() => undefined}
@@ -77,5 +80,12 @@ describe('WorkspaceSpaceActionMenu', () => {
     })
 
     expect(screen.queryByTestId('workspace-space-action-open-menu')).not.toBeInTheDocument()
+  })
+
+  it('can render both create and archive actions together', () => {
+    renderMenu([], { canCreateWorktree: true, canArchive: true })
+
+    expect(screen.getByTestId('workspace-space-action-create')).toBeVisible()
+    expect(screen.getByTestId('workspace-space-action-archive')).toBeVisible()
   })
 })

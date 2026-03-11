@@ -24,9 +24,6 @@ export function SpaceWorktreeWindowDialog({
   guardIsBusy,
   onBackdropClose,
   onClose,
-  onOpenCreate,
-  onOpenArchive,
-  onBackHome,
   onBranchModeChange,
   onNewBranchNameChange,
   onStartPointChange,
@@ -56,9 +53,6 @@ export function SpaceWorktreeWindowDialog({
   guardIsBusy: boolean
   onBackdropClose: () => void
   onClose: () => void
-  onOpenCreate: () => void
-  onOpenArchive: () => void
-  onBackHome: () => void
   onBranchModeChange: (mode: BranchMode) => void
   onNewBranchNameChange: (value: string) => void
   onStartPointChange: (value: string) => void
@@ -121,9 +115,7 @@ export function SpaceWorktreeWindowDialog({
           existingBranchName={existingBranchName}
           deleteBranchOnArchive={deleteBranchOnArchive}
           archiveSpaceOnArchive={archiveSpaceOnArchive}
-          onOpenCreate={onOpenCreate}
-          onOpenArchive={onOpenArchive}
-          onBackHome={onBackHome}
+          onClose={onClose}
           onBranchModeChange={onBranchModeChange}
           onNewBranchNameChange={onNewBranchNameChange}
           onStartPointChange={onStartPointChange}

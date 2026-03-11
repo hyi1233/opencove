@@ -63,7 +63,7 @@ export interface SpaceActionMenuState {
 
 export interface SpaceWorktreeDialogState {
   spaceId: string
-  initialViewMode: 'home' | 'create' | 'archive'
+  initialViewMode: 'create' | 'archive'
 }
 
 export interface SelectionDraftState {

@@ -383,7 +383,7 @@ export function WorkspaceCanvasView({
         menu={spaceActionMenu}
         availableOpeners={availablePathOpeners}
         canCreateWorktree={activeMenuSpace !== null && isActiveMenuSpaceOnWorkspaceRoot}
-        canArchive={activeMenuSpace !== null && !isActiveMenuSpaceOnWorkspaceRoot}
+        canArchive={activeMenuSpace !== null}
         closeMenu={closeSpaceActionMenu}
         onCreateWorktree={() => {
           if (activeMenuSpace) {
@@ -437,7 +437,7 @@ export function WorkspaceCanvasView({
 
       <SpaceWorktreeWindow
         spaceId={spaceWorktreeDialog?.spaceId ?? null}
-        initialViewMode={spaceWorktreeDialog?.initialViewMode ?? 'home'}
+        initialViewMode={spaceWorktreeDialog?.initialViewMode ?? 'create'}
         spaces={spaces}
         nodes={nodes}
         workspacePath={workspacePath}

@@ -17,9 +17,7 @@ export function SpaceWorktreePanels({
   existingBranchName,
   deleteBranchOnArchive,
   archiveSpaceOnArchive,
-  onOpenCreate,
-  onOpenArchive,
-  onBackHome,
+  onClose,
   onBranchModeChange,
   onNewBranchNameChange,
   onStartPointChange,
@@ -44,9 +42,7 @@ export function SpaceWorktreePanels({
   existingBranchName: string
   deleteBranchOnArchive: boolean
   archiveSpaceOnArchive: boolean
-  onOpenCreate: () => void
-  onOpenArchive: () => void
-  onBackHome: () => void
+  onClose: () => void
   onBranchModeChange: (mode: BranchMode) => void
   onNewBranchNameChange: (value: string) => void
   onStartPointChange: (value: string) => void
@@ -59,56 +55,19 @@ export function SpaceWorktreePanels({
 }): React.JSX.Element {
   return (
     <>
-      {viewMode === 'home' ? (
-        <div className="workspace-space-worktree__view" data-testid="space-worktree-home-view">
-          <section className="workspace-space-worktree__surface workspace-space-worktree__surface--actions">
-            <h4>What do you want to do?</h4>
-            <div className="workspace-space-worktree__action-grid workspace-space-worktree__action-grid--two">
-              {isSpaceOnWorkspaceRoot ? (
-                <button
-                  type="button"
-                  className="workspace-space-worktree__action-card"
-                  data-testid="space-worktree-open-create"
-                  disabled={isBusy}
-                  onClick={onOpenCreate}
-                >
-                  <span className="workspace-space-worktree__action-title">Create</span>
-                  <span className="workspace-space-worktree__action-description">
-                    Create and bind a fresh worktree for this Space.
-                  </span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="workspace-space-worktree__action-card workspace-space-worktree__action-card--danger"
-                  data-testid="space-worktree-open-archive"
-                  disabled={isBusy}
-                  onClick={onOpenArchive}
-                >
-                  <span className="workspace-space-worktree__action-title">Archive</span>
-                  <span className="workspace-space-worktree__action-description">
-                    Rebind this Space to workspace root and clean up its worktree.
-                  </span>
-                </button>
-              )}
-            </div>
-          </section>
-        </div>
-      ) : null}
-
       {viewMode === 'create' ? (
         <div className="workspace-space-worktree__view" data-testid="space-worktree-create-view">
           <div className="workspace-space-worktree__view-header">
+            <h4>Create worktree</h4>
             <button
               type="button"
               className="cove-window__action cove-window__action--ghost"
-              data-testid="space-worktree-back-home"
+              data-testid="space-worktree-close-inline"
               disabled={isBusy}
-              onClick={onBackHome}
+              onClick={onClose}
             >
-              ← Back
+              Close
             </button>
-            <h4>Create worktree</h4>
           </div>
 
           <section className="workspace-space-worktree__surface">
@@ -244,49 +203,57 @@ export function SpaceWorktreePanels({
       {viewMode === 'archive' ? (
         <div className="workspace-space-worktree__view" data-testid="space-worktree-archive-view">
           <div className="workspace-space-worktree__view-header">
+            <h4>Archive Space</h4>
             <button
               type="button"
               className="cove-window__action cove-window__action--ghost"
-              data-testid="space-worktree-back-home"
+              data-testid="space-worktree-close-inline"
               disabled={isBusy}
-              onClick={onBackHome}
+              onClick={onClose}
             >
-              ← Back
+              Close
             </button>
-            <h4>Archive Space</h4>
           </div>
 
           <section className="workspace-space-worktree__surface workspace-space-worktree__surface--danger">
-            <p>
-              This will rebind <strong>{space.name}</strong> to the workspace root and remove its
-              current worktree.
-            </p>
+            {isSpaceOnWorkspaceRoot ? (
+              <p>
+                This will archive <strong>{space.name}</strong> and remove all nodes inside it.
+              </p>
+            ) : (
+              <>
+                <p>
+                  This will rebind <strong>{space.name}</strong> to the workspace root and remove
+                  its current worktree.
+                </p>
 
-            <label className="workspace-space-worktree__checkbox">
-              <input
-                type="checkbox"
-                data-testid="space-worktree-archive-delete-branch"
-                checked={deleteBranchOnArchive}
-                disabled={isBusy}
-                onChange={event => {
-                  onDeleteBranchOnArchiveChange(event.target.checked)
-                }}
-              />
-              Also delete the current branch
-            </label>
+                <label className="workspace-space-worktree__checkbox">
+                  <input
+                    type="checkbox"
+                    data-testid="space-worktree-archive-delete-branch"
+                    checked={deleteBranchOnArchive}
+                    disabled={isBusy}
+                    onChange={event => {
+                      onDeleteBranchOnArchiveChange(event.target.checked)
+                    }}
+                  />
+                  Also delete the current branch
+                </label>
 
-            <label className="workspace-space-worktree__checkbox">
-              <input
-                type="checkbox"
-                data-testid="space-worktree-archive-space"
-                checked={archiveSpaceOnArchive}
-                disabled={isBusy}
-                onChange={event => {
-                  onArchiveSpaceOnArchiveChange(event.target.checked)
-                }}
-              />
-              Also archive this Space and remove all nodes inside it
-            </label>
+                <label className="workspace-space-worktree__checkbox">
+                  <input
+                    type="checkbox"
+                    data-testid="space-worktree-archive-space"
+                    checked={archiveSpaceOnArchive}
+                    disabled={isBusy}
+                    onChange={event => {
+                      onArchiveSpaceOnArchiveChange(event.target.checked)
+                    }}
+                  />
+                  Also archive this Space and remove all nodes inside it
+                </label>
+              </>
+            )}
 
             <div className="workspace-space-worktree__inline-actions">
               <button

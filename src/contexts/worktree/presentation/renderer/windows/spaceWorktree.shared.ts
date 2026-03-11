@@ -1,7 +1,7 @@
 import type { CreateGitWorktreeBranchMode } from '@shared/contracts/dto'
 
 export type BranchMode = 'new' | 'existing'
-export type SpaceWorktreeViewMode = 'home' | 'create' | 'archive'
+export type SpaceWorktreeViewMode = 'create' | 'archive'
 
 export interface BlockingNodesSnapshot {
   agentNodeIds: string[]
@@ -22,7 +22,7 @@ export type PendingOperation =
     }
   | {
       kind: 'archive'
-      worktreePath: string
+      worktreePath: string | null
       deleteBranch: boolean
       archiveSpace: boolean
       force: boolean
