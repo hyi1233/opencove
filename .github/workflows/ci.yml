@@ -134,8 +134,9 @@ jobs:
       - name: Windows-specific E2E tests
         env:
           OPENCOVE_E2E_SKIP_BUILD: '1'
+          OPENCOVE_E2E_TEST_MATCH: '**/*.windows.spec.ts'
           OPENCOVE_E2E_WINDOW_MODE: inactive
-        run: pnpm exec playwright test ".*\\.windows\\.spec\\.ts$"
+        run: pnpm exec playwright test
 
       - name: Upload Playwright report
         if: failure()

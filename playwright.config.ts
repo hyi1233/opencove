@@ -6,6 +6,7 @@ import { defineConfig } from '@playwright/test'
 const defaultE2EWindowMode = process.platform === 'darwin' ? 'normal' : 'offscreen'
 process.env['OPENCOVE_E2E_WINDOW_MODE'] =
   process.env['OPENCOVE_E2E_WINDOW_MODE'] ?? defaultE2EWindowMode
+const configuredTestMatch = process.env['OPENCOVE_E2E_TEST_MATCH']?.trim()
 
 /**
  * Playwright 配置 - Electron E2E 测试
@@ -18,7 +19,8 @@ export default defineConfig({
   testDir: './tests/e2e',
 
   // 测试文件匹配模式
-  testMatch: '**/*.spec.ts',
+  testMatch:
+    configuredTestMatch && configuredTestMatch.length > 0 ? configuredTestMatch : '**/*.spec.ts',
 
   // 全局超时：每个测试 120 秒 (考虑 Electron 启动时间)
   timeout: 120_000,
