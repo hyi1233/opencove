@@ -2,7 +2,7 @@ import type { AgentProviderId } from '../../../shared/contracts/dto'
 import { createAppError } from '../../../shared/errors/appError'
 
 export function normalizeProvider(value: unknown): AgentProviderId {
-  if (value !== 'claude-code' && value !== 'codex') {
+  if (value !== 'claude-code' && value !== 'codex' && value !== 'opencode' && value !== 'gemini') {
     throw createAppError('common.invalid_input', { debugMessage: 'Invalid provider' })
   }
 

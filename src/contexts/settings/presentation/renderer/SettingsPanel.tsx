@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { useTranslation } from '@app/renderer/i18n'
 import { AI_NAMING_FEATURES } from '@shared/featureFlags/aiNaming'
 import {
+  AGENT_PROVIDERS,
   resolveTaskTitleProvider,
   type AgentProvider,
   type AgentSettings,
@@ -37,7 +38,13 @@ type CoreSectionId = 'general' | 'canvas' | 'task-configuration' | 'model-overri
 type SettingsSectionId = CoreSectionId | string
 
 function createInitialInputState(): Record<AgentProvider, string> {
-  return { 'claude-code': '', codex: '' }
+  return AGENT_PROVIDERS.reduce<Record<AgentProvider, string>>(
+    (acc, provider) => {
+      acc[provider] = ''
+      return acc
+    },
+    {} as Record<AgentProvider, string>,
+  )
 }
 
 function getFolderName(path: string): string {

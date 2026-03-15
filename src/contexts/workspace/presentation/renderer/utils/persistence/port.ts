@@ -16,7 +16,6 @@ export interface PersistencePort {
 }
 
 const NODE_SCROLLBACK_KEY_PREFIX = 'cove:m0:node-scrollback:'
-
 function createIpcPort(): PersistencePort | null {
   if (typeof window === 'undefined') {
     return null

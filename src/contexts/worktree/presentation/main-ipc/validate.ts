@@ -10,6 +10,7 @@ import type {
 } from '../../../../shared/contracts/dto'
 import { isAbsolute } from 'node:path'
 import type { AgentProviderId } from '../../../../shared/contracts/dto'
+import { isWorktreeNameSuggestionProvider } from '../../../settings/domain/agentSettings'
 import { createAppError } from '../../../../shared/errors/appError'
 
 function normalizeTextValue(value: unknown): string {
@@ -37,7 +38,7 @@ function normalizeAbsolutePath(value: unknown, label: string): string {
 }
 
 function normalizeProvider(value: unknown): AgentProviderId {
-  if (value === 'codex' || value === 'claude-code') {
+  if (isWorktreeNameSuggestionProvider(value)) {
     return value
   }
 

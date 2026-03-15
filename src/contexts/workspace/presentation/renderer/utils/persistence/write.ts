@@ -3,7 +3,6 @@ import { createAppErrorDescriptor, toAppErrorDescriptor } from '@shared/errors/a
 import { PERSISTED_APP_STATE_FORMAT_VERSION } from './constants'
 import type { PersistWriteResult } from './types'
 import { getPersistencePort } from './port'
-
 function stripScrollbackFromState(state: PersistedAppState): PersistedAppState {
   return {
     ...state,

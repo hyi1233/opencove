@@ -1,5 +1,5 @@
-import type { Node, ReactFlowInstance } from '/react'
-import type { TranslateFn } from '@app/renderer/i18n'
+import type { Node, ReactFlowInstance } from '@xyflow/react'
+import { translate, type TranslateFn } from '@app/renderer/i18n'
 import { AGENT_PROVIDER_LABEL, type AgentProvider } from '@contexts/settings/domain/agentSettings'
 import {
   formatAppErrorMessage,
@@ -167,25 +167,6 @@ export function validateSpaceTransfer(
   return null
 }
 
-export function toAgentRuntimeLabel(status: TerminalNodeData['status']): string {
-  switch (status) {
-    case 'running':
-      return 'Working'
-    case 'standby':
-      return 'Standby'
-    case 'restoring':
-      return 'Restoring'
-    case 'failed':
-      return 'Failed'
-    case 'stopped':
-      return 'Stopped'
-    case 'exited':
-      return 'Exited'
-    default:
-      return 'Idle'
-  }
-}
-
 export function toErrorMessage(error: unknown): string {
   if (error instanceof OpenCoveAppError) {
     return formatAppErrorMessage(error)
@@ -203,7 +184,7 @@ export function toErrorMessage(error: unknown): string {
     return error
   }
 
-  return 'Unknown error'
+  return translate('common.unknownError')
 }
 
 export function providerLabel(provider: AgentProvider): string {
@@ -211,7 +192,19 @@ export function providerLabel(provider: AgentProvider): string {
 }
 
 export function providerTitlePrefix(provider: AgentProvider): string {
-  return provider === 'codex' ? 'codex' : 'claude'
+  if (provider === 'claude-code') {
+    return 'claude'
+  }
+
+  if (provider === 'opencode') {
+    return 'opencode'
+  }
+
+  if (provider === 'gemini') {
+    return 'gemini'
+  }
+
+  return 'codex'
 }
 
 export function normalizeDirectoryPath(workspacePath: string, customDirectory: string): string {

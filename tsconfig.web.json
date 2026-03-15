@@ -3,14 +3,15 @@
   "include": [
     "src/app/renderer/**/*",
     "src/app/renderer/*.d.ts",
-    "src/app/preload/*.d.ts",
+    "src/app/preload/**/*",
     "src/shared/**/*",
-    "src/contexts/**/*",
-    "src/platform/**/*"
+    "src/contexts/**/domain/**/*",
+    "src/contexts/**/presentation/renderer/**/*"
   ],
   "compilerOptions": {
     "composite": true,
     "jsx": "react-jsx",
+    "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
       "@app/*": ["src/app/*"],

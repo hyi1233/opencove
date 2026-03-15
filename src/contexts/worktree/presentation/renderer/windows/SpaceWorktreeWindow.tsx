@@ -6,7 +6,11 @@ import type {
   TerminalNodeData,
   WorkspaceSpaceState,
 } from '@contexts/workspace/presentation/renderer/types'
-import type { CreateGitWorktreeBranchMode, GitWorktreeInfo } from '@shared/contracts/dto'
+import type {
+  CreateGitWorktreeBranchMode,
+  GitWorktreeInfo,
+  RemoveGitWorktreeResult,
+} from '@shared/contracts/dto'
 import { SpaceWorktreeGuardWindow, type SpaceWorktreeGuardState } from './SpaceWorktreeGuardWindow'
 import { SpaceWorktreeWindowDialog } from './SpaceWorktreeWindowDialog'
 import {
@@ -234,7 +238,7 @@ export function SpaceWorktreeWindow({
             }
           : options
 
-      let removedBranchError: Awaited<ReturnType<typeof removeWorktree>>['branchDeleteError'] = null
+      let removedBranchError: RemoveGitWorktreeResult['branchDeleteError'] = null
 
       if (pending.worktreePath) {
         const removeWorktree = getWorktreeApiMethod('remove', t)

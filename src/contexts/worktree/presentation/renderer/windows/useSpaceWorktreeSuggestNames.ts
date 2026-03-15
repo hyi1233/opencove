@@ -1,7 +1,10 @@
 import { useCallback } from 'react'
 import { useTranslation } from '@app/renderer/i18n'
-import type { AgentSettings } from '@contexts/settings/domain/agentSettings'
-import { resolveAgentModel } from '@contexts/settings/domain/agentSettings'
+import {
+  resolveAgentModel,
+  resolveWorktreeNameSuggestionProvider,
+  type AgentSettings,
+} from '@contexts/settings/domain/agentSettings'
 import { AI_NAMING_FEATURES } from '@shared/featureFlags/aiNaming'
 import { toErrorMessage } from '@contexts/workspace/presentation/renderer/components/workspaceCanvas/helpers'
 import { getWorktreeApiMethod } from './spaceWorktree.shared'
@@ -37,7 +40,7 @@ export function useSpaceWorktreeSuggestNames({
     setError(null)
 
     try {
-      const provider = agentSettings.defaultProvider
+      const provider = resolveWorktreeNameSuggestionProvider(agentSettings.defaultProvider)
       const model = resolveAgentModel(agentSettings, provider)
       const suggestWorktreeNames = getWorktreeApiMethod('suggestNames', t)
 

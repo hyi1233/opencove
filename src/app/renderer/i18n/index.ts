@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { DEFAULT_UI_LANGUAGE, type UiLanguage } from '@contexts/settings/domain/agentSettings'
 import { en } from './locales/en'
+import type { TranslationDictionary } from './locales/schema'
 import { zhCN } from './locales/zh-CN'
-
-type TranslationDictionary = typeof en
 
 export type TranslateOptions = Record<string, string | number | boolean | null | undefined>
 export type TranslateFn = (key: string, options?: TranslateOptions) => string
@@ -69,13 +68,20 @@ function translateForLanguage(
   return key
 }
 
+export function getActiveUiLanguage(): UiLanguage {
+  return activeLanguage
+}
+
+export function translate(key: string, options?: TranslateOptions): string {
+  return translateForLanguage(activeLanguage, key, options)
+}
+
 const I18nContext = createContext<{
   language: UiLanguage
   t: TranslateFn
 } | null>(null)
 
-const fallbackTranslate: TranslateFn = (key, options) =>
-  translateForLanguage(activeLanguage, key, options)
+const fallbackTranslate: TranslateFn = (key, options) => translate(key, options)
 
 export function applyUiLanguage(language: UiLanguage): Promise<void> {
   if (activeLanguage === language) {

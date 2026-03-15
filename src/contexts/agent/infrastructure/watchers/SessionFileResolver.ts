@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
-import type { AgentProviderId } from '../../../../../../shared/contracts/dto'
+import type { AgentProviderId } from '@shared/contracts/dto'
 
 interface ResolveSessionFilePathInput {
   provider: AgentProviderId
@@ -36,6 +36,15 @@ async function listFiles(directory: string): Promise<string[]> {
   try {
     const entries = await fs.readdir(directory, { withFileTypes: true })
     return entries.filter(entry => entry.isFile()).map(entry => join(directory, entry.name))
+  } catch {
+    return []
+  }
+}
+
+async function listDirectories(directory: string): Promise<string[]> {
+  try {
+    const entries = await fs.readdir(directory, { withFileTypes: true })
+    return entries.filter(entry => entry.isDirectory()).map(entry => join(directory, entry.name))
   } catch {
     return []
   }
@@ -185,6 +194,50 @@ async function findCodexSessionFilePath(
   return null
 }
 
+async function findGeminiSessionFilePath(cwd: string, sessionId: string): Promise<string | null> {
+  const geminiTmpDir = join(os.homedir(), '.gemini', 'tmp')
+  const resolvedCwd = resolve(cwd)
+  const projectDirectories = await listDirectories(geminiTmpDir)
+
+  for (const projectDirectory of projectDirectories) {
+    // eslint-disable-next-line no-await-in-loop
+    const projectRoot = await fs
+      .readFile(join(projectDirectory, '.project_root'), 'utf8')
+      .then(contents => contents.trim())
+      .catch(() => null)
+
+    if (projectRoot !== resolvedCwd) {
+      continue
+    }
+
+    // eslint-disable-next-line no-await-in-loop
+    const chatFiles = (await listFiles(join(projectDirectory, 'chats'))).filter(file => {
+      return file.endsWith('.json') && basename(file).startsWith('session-')
+    })
+
+    for (const chatFile of chatFiles) {
+      // eslint-disable-next-line no-await-in-loop
+      const contents = await fs.readFile(chatFile, 'utf8').catch(() => null)
+      if (!contents) {
+        continue
+      }
+
+      try {
+        const parsed = JSON.parse(contents) as { sessionId?: unknown }
+        const detectedSessionId =
+          typeof parsed.sessionId === 'string' ? parsed.sessionId.trim() : null
+        if (detectedSessionId === sessionId) {
+          return chatFile
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+
+  return null
+}
+
 async function tryResolveSessionFilePath(
   provider: AgentProviderId,
   cwd: string,
@@ -196,7 +249,15 @@ async function tryResolveSessionFilePath(
     return await ensureFileExists(resolvedPath)
   }
 
-  return await findCodexSessionFilePath(cwd, sessionId, startedAtMs)
+  if (provider === 'codex') {
+    return await findCodexSessionFilePath(cwd, sessionId, startedAtMs)
+  }
+
+  if (provider === 'gemini') {
+    return await findGeminiSessionFilePath(cwd, sessionId)
+  }
+
+  return null
 }
 
 async function pollSessionFilePath(

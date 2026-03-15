@@ -9,10 +9,10 @@ type SetNodes = (
   options?: { syncLayout?: boolean },
 ) => void
 
-function resolveFallbackTaskTitle(requirement: string): string {
+function resolveFallbackTaskTitle(requirement: string, fallbackTitle: string): string {
   const cleanedRequirement = requirement.replace(/\s+/g, ' ').trim()
   if (cleanedRequirement.length === 0) {
-    return 'New task'
+    return fallbackTitle
   }
 
   if (cleanedRequirement.length <= 24) {
@@ -82,7 +82,7 @@ export function useWorkspaceCanvasNoteToTaskConversion({
       return
     }
 
-    const title = resolveFallbackTaskTitle(requirement)
+    const title = resolveFallbackTaskTitle(requirement, t('taskWindow.defaultTaskTitle'))
     const now = new Date().toISOString()
 
     setNodes(
@@ -95,7 +95,7 @@ export function useWorkspaceCanvasNoteToTaskConversion({
 
           hasChanged = true
 
-          return {
+          const convertedNode: Node<TerminalNodeData> = {
             ...node,
             type: 'taskNode',
             selectable: true,
@@ -118,6 +118,8 @@ export function useWorkspaceCanvasNoteToTaskConversion({
               note: null,
             },
           }
+
+          return convertedNode
         })
 
         return hasChanged ? nextNodes : prevNodes

@@ -1,6 +1,7 @@
 import type { SuggestTaskTitleInput } from '../../../../shared/contracts/dto'
 import { normalizeProvider, normalizeStringArray } from '../../../../app/main/ipc/normalize'
 import { isAbsolute } from 'node:path'
+import { isTaskTitleAgentProvider } from '../../../settings/domain/agentSettings'
 import { createAppError } from '../../../../shared/errors/appError'
 
 export function normalizeSuggestTaskTitlePayload(payload: unknown): SuggestTaskTitleInput {
@@ -33,6 +34,12 @@ export function normalizeSuggestTaskTitlePayload(payload: unknown): SuggestTaskT
   if (requirement.length === 0) {
     throw createAppError('common.invalid_input', {
       debugMessage: 'Invalid requirement for task:suggest-title',
+    })
+  }
+
+  if (!isTaskTitleAgentProvider(provider)) {
+    throw createAppError('common.invalid_input', {
+      debugMessage: 'Invalid provider for task:suggest-title',
     })
   }
 

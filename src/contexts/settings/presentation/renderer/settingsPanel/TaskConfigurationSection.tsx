@@ -1,9 +1,10 @@
 import React from 'react'
 import { useTranslation } from '@app/renderer/i18n'
 import {
-  AGENT_PROVIDERS,
   AGENT_PROVIDER_LABEL,
+  TASK_TITLE_PROVIDERS,
   type AgentProvider,
+  type TaskTitleAgentProvider,
   type TaskTitleProvider,
 } from '@contexts/settings/domain/agentSettings'
 
@@ -12,7 +13,7 @@ export function TaskConfigurationSection(props: {
   defaultProvider: AgentProvider
   taskTitleProvider: TaskTitleProvider
   taskTitleModel: string
-  effectiveTaskTitleProvider: AgentProvider
+  effectiveTaskTitleProvider: TaskTitleAgentProvider
   tags: string[]
   addTaskTagInput: string
   onChangeTaskTitleProvider: (provider: TaskTitleProvider) => void
@@ -61,7 +62,7 @@ export function TaskConfigurationSection(props: {
                     provider: AGENT_PROVIDER_LABEL[defaultProvider],
                   })}
                 </option>
-                {AGENT_PROVIDERS.map(provider => (
+                {TASK_TITLE_PROVIDERS.map(provider => (
                   <option value={provider} key={provider}>
                     {AGENT_PROVIDER_LABEL[provider]}
                   </option>

@@ -1,6 +1,7 @@
-import type { AppErrorDescriptor } from './error'
+export type AgentProviderId = 'claude-code' | 'codex' | 'opencode' | 'gemini'
 
-export type AgentProviderId = 'claude-code' | 'codex'
+export type AgentModelCatalogSource = 'claude-static' | 'codex-cli' | 'opencode-cli' | 'gemini-cli'
+import type { AppErrorDescriptor } from './error'
 
 export type AgentLaunchMode = 'new' | 'resume'
 
@@ -17,7 +18,7 @@ export interface AgentModelOption {
 
 export interface ListAgentModelsResult {
   provider: AgentProviderId
-  source: 'claude-static' | 'codex-cli'
+  source: AgentModelCatalogSource
   fetchedAt: string
   models: AgentModelOption[]
   error: AppErrorDescriptor | null
