@@ -1,15 +1,17 @@
-import { useCallback, useLayoutEffect, useRef } from 'react'
-import type { Node } from '@xyflow/react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useReactFlow, type Edge, type Node } from '@xyflow/react'
 import type { NodeFrame, Point, Size, TerminalNodeData } from '../../../types'
 import { useScrollbackStore } from '../../../store/useScrollbackStore'
 import { findNearestFreePosition } from '../../../utils/collision'
 import { cleanupNodeRuntimeArtifacts } from '../../../utils/nodeRuntimeCleanup'
 import { scheduleNodeScrollbackWrite } from '../../../utils/persistence/scrollbackSchedule'
 import { MIN_SIZE } from '../constants'
+import { centerNodeInViewport } from '../helpers'
 import { syncWorkspaceCanvasTestState } from '../testHarness'
 import { removeNodeWithRelations } from './useNodesStore.closeNode'
 import { resolveWorkspaceLayoutAfterNodeResize } from './useNodesStore.resolveResizeLayout'
 import { useWorkspaceCanvasNodeCreation } from './useNodesStore.createNodes'
+import type { NodeLabelColorOverride } from '@shared/types/labelColor'
 import type {
   UseWorkspaceCanvasNodesStoreParams,
   UseWorkspaceCanvasNodesStoreResult,
@@ -25,10 +27,49 @@ export function useWorkspaceCanvasNodesStore({
   defaultTerminalWindowScalePercent,
   onNodeCreated,
 }: UseWorkspaceCanvasNodesStoreParams): UseWorkspaceCanvasNodesStoreResult {
+  const reactFlow = useReactFlow<Node<TerminalNodeData>, Edge>()
   const nodesRef = useRef(nodes)
   const agentLaunchTokenByNodeIdRef = useRef<Map<string, number>>(new Map())
   const pendingScrollbackByNodeRef = useRef<Map<string, string>>(new Map())
   const isNodeDraggingRef = useRef(false)
+  const [fallbackCreatedNodeId, setFallbackCreatedNodeId] = useState<string | null>(null)
+
+  const fallbackOnNodeCreated = useCallback((nodeId: string) => {
+    const normalizedNodeId = nodeId.trim()
+    if (normalizedNodeId.length === 0) {
+      return
+    }
+
+    setFallbackCreatedNodeId(normalizedNodeId)
+  }, [])
+
+  useLayoutEffect(() => {
+    if (onNodeCreated) {
+      return
+    }
+
+    if (!fallbackCreatedNodeId) {
+      return
+    }
+
+    const targetNode =
+      reactFlow.getNode?.(fallbackCreatedNodeId) ??
+      nodesRef.current.find(node => node.id === fallbackCreatedNodeId) ??
+      null
+
+    if (!targetNode) {
+      return
+    }
+
+    const viewport = reactFlow.getViewport?.() ?? null
+    const zoom = viewport && Number.isFinite(viewport.zoom) && viewport.zoom > 0 ? viewport.zoom : 1
+
+    centerNodeInViewport(reactFlow, targetNode, {
+      duration: 180,
+      zoom,
+    })
+  }, [fallbackCreatedNodeId, onNodeCreated, reactFlow])
+
   useLayoutEffect(() => {
     nodesRef.current = nodes
     if (window.opencoveApi?.meta?.isTest === true) {
@@ -314,13 +355,54 @@ export function useWorkspaceCanvasNodesStore({
     [setNodes],
   )
 
+  const setNodeLabelColorOverride = useCallback(
+    (nodeIds: string[], labelColorOverride: NodeLabelColorOverride) => {
+      const normalizedIds = nodeIds.map(id => id.trim()).filter(id => id.length > 0)
+      if (normalizedIds.length === 0) {
+        return
+      }
+
+      const idSet = new Set(normalizedIds)
+      setNodes(
+        prevNodes => {
+          let hasChanged = false
+
+          const nextNodes = prevNodes.map(node => {
+            if (!idSet.has(node.id)) {
+              return node
+            }
+
+            const previous = node.data.labelColorOverride ?? null
+            if (previous === labelColorOverride) {
+              return node
+            }
+
+            hasChanged = true
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                labelColorOverride,
+              },
+            }
+          })
+
+          return hasChanged ? nextNodes : prevNodes
+        },
+        { syncLayout: false },
+      )
+
+      onRequestPersistFlush?.()
+    },
+    [onRequestPersistFlush, setNodes],
+  )
   const { createNodeForSession, createNoteNode, createTaskNode } = useWorkspaceCanvasNodeCreation({
     defaultTerminalWindowScalePercent,
     nodesRef,
     spacesRef,
     onRequestPersistFlush,
     onShowMessage,
-    onNodeCreated,
+    onNodeCreated: onNodeCreated ?? fallbackOnNodeCreated,
     setNodes,
   })
 
@@ -340,6 +422,7 @@ export function useWorkspaceCanvasNodesStore({
     updateNodeScrollback,
     updateTerminalTitle,
     renameTerminalTitle,
+    setNodeLabelColorOverride,
     updateNoteText,
     createNodeForSession,
     createNoteNode,
