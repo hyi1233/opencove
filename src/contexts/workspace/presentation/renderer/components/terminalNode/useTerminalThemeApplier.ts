@@ -1,14 +1,16 @@
 import { useCallback } from 'react'
 import type { Terminal } from '@xterm/xterm'
 import type { MutableRefObject } from 'react'
-import { resolveActiveUiTheme, resolveTerminalTheme } from './theme'
+import { resolveTerminalTheme, resolveTerminalUiTheme, type TerminalThemeMode } from './theme'
 
 export function useTerminalThemeApplier({
   terminalRef,
   containerRef,
+  terminalThemeMode = 'sync-with-ui',
 }: {
   terminalRef: MutableRefObject<Terminal | null>
   containerRef: MutableRefObject<HTMLDivElement | null>
+  terminalThemeMode?: TerminalThemeMode
 }): () => void {
   return useCallback(() => {
     const terminal = terminalRef.current
@@ -16,8 +18,9 @@ export function useTerminalThemeApplier({
       return
     }
 
-    terminal.options.theme = { ...resolveTerminalTheme() }
-    containerRef.current?.setAttribute('data-cove-terminal-theme', resolveActiveUiTheme())
+    const resolvedTerminalUiTheme = resolveTerminalUiTheme(terminalThemeMode)
+    terminal.options.theme = { ...resolveTerminalTheme(terminalThemeMode) }
+    containerRef.current?.setAttribute('data-cove-terminal-theme', resolvedTerminalUiTheme)
     terminal.refresh(0, Math.max(0, terminal.rows - 1))
-  }, [containerRef, terminalRef])
+  }, [containerRef, terminalRef, terminalThemeMode])
 }
